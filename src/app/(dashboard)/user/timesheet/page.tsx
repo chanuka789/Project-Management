@@ -63,7 +63,7 @@ export default function TimesheetPage() {
           .select('project_id, projects(*)')
           .eq('user_id', authUser.id);
 
-        setProjects((projectUsers || []).map((pu: { projects: Project }) => pu.projects).filter(Boolean));
+        setProjects((projectUsers || []).map((pu: any) => pu.projects as Project).filter(Boolean));
 
         // Fetch time entries for current week
         const weekEnd = new Date(weekStart);

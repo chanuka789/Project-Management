@@ -71,13 +71,13 @@ export default function UserProjectsPage() {
             .in('project_id', projectIds);
 
           // Combine data
-          const projectsWithDetails = (projectUsers || []).map((pu: { projects: Project; project_id: string }) => ({
-            ...pu.projects,
-            tasks: (tasks || []).filter(t => t.project_id === pu.project_id),
-            time_entries: (timeEntries || []).filter(te => te.project_id === pu.project_id),
+          const projectsWithDetails = (projectUsers || []).map((pu: any) => ({
+            ...pu.projects as Project,
+            tasks: (tasks || []).filter((t: any) => t.project_id === pu.project_id),
+            time_entries: (timeEntries || []).filter((te: any) => te.project_id === pu.project_id),
             team_members: (allProjectUsers || [])
-              .filter((apu: { project_id: string }) => apu.project_id === pu.project_id)
-              .map((apu: { users: User }) => apu.users)
+              .filter((apu: any) => apu.project_id === pu.project_id)
+              .map((apu: any) => apu.users as User)
               .filter(Boolean),
           }));
 

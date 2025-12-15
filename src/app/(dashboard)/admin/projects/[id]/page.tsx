@@ -112,7 +112,7 @@ export default function ProjectDetailPage() {
 
           setProject({
             ...projectData,
-            assigned_users: projectUsers?.map((pu: { users: User }) => pu.users).filter(Boolean) || [],
+            assigned_users: projectUsers?.map((pu: any) => pu.users as User).filter(Boolean) || [],
             tasks: tasks || [],
             time_entries: timeEntries || [],
             additional_costs: additionalCosts || [],

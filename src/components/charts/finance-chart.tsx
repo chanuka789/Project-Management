@@ -58,7 +58,7 @@ export function FinanceChart({ data, title }: FinanceChartProps) {
               boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
             }}
             labelStyle={{ color: '#171717', fontWeight: 600 }}
-            formatter={(value: number) => formatCurrency(value)}
+            formatter={(value?: number) => formatCurrency(value ?? 0)}
           />
           <Area
             type="monotone"
