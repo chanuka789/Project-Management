@@ -271,7 +271,7 @@ export default function AdminTimesheetPage() {
                     const hours = userDailyHours[user.id] || {};
                     const total = userTotalHours[user.id] || 0;
                     return (
-                      <tr key={user.id} className="border-t border-gray-100">
+                      <tr key={user.id} className="border-t border-border">
                         <td className="py-3 px-3">
                           <div className="flex items-center gap-2">
                             <Avatar name={user.full_name} size="sm" />
@@ -290,8 +290,8 @@ export default function AdminTimesheetPage() {
                                 dayHours > 0
                                   ? 'text-primary bg-primary/10'
                                   : isToday
-                                    ? 'text-gray-400 bg-gray-100'
-                                    : 'text-gray-300'
+                                    ? 'text-muted-foreground bg-muted'
+                                    : 'text-muted-foreground/50'
                               }`}>
                                 {dayHours > 0 ? `${dayHours}h` : '-'}
                               </div>
