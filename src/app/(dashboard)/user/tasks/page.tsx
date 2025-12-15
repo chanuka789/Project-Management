@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Select } from '@/components/ui/select';
 import { EmptyState } from '@/components/ui/empty-state';
+import { useCompanySettings } from '@/hooks/use-company-settings';
 import { formatDate } from '@/lib/utils';
 import {
   ClipboardList,
