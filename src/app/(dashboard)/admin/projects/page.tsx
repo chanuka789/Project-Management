@@ -12,6 +12,7 @@ import { Select } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
 import { EmptyState } from '@/components/ui/empty-state';
 import { formatCurrency, formatDate, calculateDaysRemaining } from '@/lib/utils';
+import { useCompanySettings } from '@/hooks/use-company-settings';
 import {
   Plus,
   Search,
@@ -34,6 +35,7 @@ export default function ProjectsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const supabase = createClient();
+  const { companyName, logoUrl } = useCompanySettings();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -115,7 +117,7 @@ export default function ProjectsPage() {
 
   if (isLoading) {
     return (
-      <DashboardLayout user={user} title="Projects">
+      <DashboardLayout user={user} title="Projects" logoUrl={logoUrl} companyName={companyName}>
         <div className="flex items-center justify-center h-64">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0a5082]" />
         </div>
@@ -124,7 +126,7 @@ export default function ProjectsPage() {
   }
 
   return (
-    <DashboardLayout user={user} title="Projects">
+    <DashboardLayout user={user} title="Projects" logoUrl={logoUrl} companyName={companyName}>
       <div className="space-y-6 animate-fade-in">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">

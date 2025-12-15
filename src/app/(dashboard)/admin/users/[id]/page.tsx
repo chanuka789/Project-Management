@@ -13,6 +13,7 @@ import { StatCard } from '@/components/ui/stat-card';
 import { TimeChart } from '@/components/charts/time-chart';
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '@/components/ui/table';
 import { formatCurrency, formatDate } from '@/lib/utils';
+import { useCompanySettings } from '@/hooks/use-company-settings';
 import {
   ArrowLeft,
   Mail,
@@ -39,6 +40,7 @@ export default function UserDetailPage() {
   const [userDetails, setUserDetails] = useState<UserDetails | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const supabase = createClient();
+  const { companyName, logoUrl } = useCompanySettings();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -100,7 +102,7 @@ export default function UserDetailPage() {
 
   if (isLoading) {
     return (
-      <DashboardLayout user={currentUser} title="User Details">
+      <DashboardLayout user={currentUser} title="User Details" logoUrl={logoUrl} companyName={companyName}>
         <div className="flex items-center justify-center h-64">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0a5082]" />
         </div>
@@ -110,7 +112,7 @@ export default function UserDetailPage() {
 
   if (!userDetails) {
     return (
-      <DashboardLayout user={currentUser} title="User Not Found">
+      <DashboardLayout user={currentUser} title="User Not Found" logoUrl={logoUrl} companyName={companyName}>
         <div className="text-center py-12">
           <p className="text-gray-500">User not found</p>
           <Link href="/admin/users">
@@ -153,7 +155,7 @@ export default function UserDetailPage() {
   }, {} as Record<string, number>);
 
   return (
-    <DashboardLayout user={currentUser} title={userDetails.full_name}>
+    <DashboardLayout user={currentUser} title={userDetails.full_name} logoUrl={logoUrl} companyName={companyName}>
       <div className="space-y-6 animate-fade-in">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">

@@ -43,6 +43,7 @@ export default function TimesheetPage() {
     date: new Date().toISOString().split('T')[0],
   });
   const supabase = createClient();
+  const { companyName, logoUrl } = useCompanySettings();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -146,7 +147,7 @@ export default function TimesheetPage() {
 
   if (isLoading) {
     return (
-      <DashboardLayout user={user} title="Timesheet">
+      <DashboardLayout user={user} title="Timesheet" logoUrl={logoUrl} companyName={companyName}>
         <div className="flex items-center justify-center h-64">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0a5082]" />
         </div>
@@ -155,7 +156,7 @@ export default function TimesheetPage() {
   }
 
   return (
-    <DashboardLayout user={user} title="Timesheet">
+    <DashboardLayout user={user} title="Timesheet" logoUrl={logoUrl} companyName={companyName}>
       <div className="space-y-6 animate-fade-in">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">

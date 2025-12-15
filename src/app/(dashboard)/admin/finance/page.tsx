@@ -12,6 +12,7 @@ import { FinanceChart } from '@/components/charts/finance-chart';
 import { PieChartComponent } from '@/components/charts/pie-chart';
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '@/components/ui/table';
 import { formatCurrency, formatDate, getProgressPercentage } from '@/lib/utils';
+import { useCompanySettings } from '@/hooks/use-company-settings';
 import {
   DollarSign,
   TrendingUp,
@@ -51,6 +52,7 @@ export default function FinancePage() {
   const [financeData, setFinanceData] = useState<FinanceData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const supabase = createClient();
+  const { companyName, logoUrl } = useCompanySettings();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -157,7 +159,7 @@ export default function FinancePage() {
 
   if (isLoading) {
     return (
-      <DashboardLayout user={user} title="Finance">
+      <DashboardLayout user={user} title="Finance" logoUrl={logoUrl} companyName={companyName}>
         <div className="flex items-center justify-center h-64">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0a5082]" />
         </div>
@@ -183,7 +185,7 @@ export default function FinancePage() {
   })) || [];
 
   return (
-    <DashboardLayout user={user} title="Finance">
+    <DashboardLayout user={user} title="Finance" logoUrl={logoUrl} companyName={companyName}>
       <div className="space-y-6 animate-fade-in">
         {/* Header */}
         <div>

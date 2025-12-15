@@ -28,6 +28,7 @@ export default function UserTasksPage() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [priorityFilter, setPriorityFilter] = useState('all');
   const supabase = createClient();
+  const { companyName, logoUrl } = useCompanySettings();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -107,7 +108,7 @@ export default function UserTasksPage() {
 
   if (isLoading) {
     return (
-      <DashboardLayout user={user} title="My Tasks">
+      <DashboardLayout user={user} title="My Tasks" logoUrl={logoUrl} companyName={companyName}>
         <div className="flex items-center justify-center h-64">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0a5082]" />
         </div>
@@ -164,7 +165,7 @@ export default function UserTasksPage() {
   );
 
   return (
-    <DashboardLayout user={user} title="My Tasks">
+    <DashboardLayout user={user} title="My Tasks" logoUrl={logoUrl} companyName={companyName}>
       <div className="space-y-6 animate-fade-in">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">

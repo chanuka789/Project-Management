@@ -28,6 +28,7 @@ export default function NewProjectPage() {
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
   const router = useRouter();
   const supabase = createClient();
+  const { companyName, logoUrl } = useCompanySettings();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -107,7 +108,7 @@ export default function NewProjectPage() {
   ];
 
   return (
-    <DashboardLayout user={user} title="New Project">
+    <DashboardLayout user={user} title="New Project" logoUrl={logoUrl} companyName={companyName}>
       <div className="max-w-3xl mx-auto space-y-6 animate-fade-in">
         {/* Header */}
         <div className="flex items-center gap-4">

@@ -12,6 +12,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select } from '@/components/ui/select';
 import { ArrowLeft, Save } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { useCompanySettings } from '@/hooks/use-company-settings';
 import type { User, Project } from '@/types/database';
 
 export default function EditProjectPage() {
@@ -31,6 +32,7 @@ export default function EditProjectPage() {
     end_date: '',
   });
   const supabase = createClient();
+  const { companyName, logoUrl } = useCompanySettings();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -113,7 +115,7 @@ export default function EditProjectPage() {
 
   if (isLoading) {
     return (
-      <DashboardLayout user={user} title="Edit Project">
+      <DashboardLayout user={user} title="Edit Project" logoUrl={logoUrl} companyName={companyName}>
         <div className="flex items-center justify-center h-64">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
         </div>
@@ -122,7 +124,7 @@ export default function EditProjectPage() {
   }
 
   return (
-    <DashboardLayout user={user} title="Edit Project">
+    <DashboardLayout user={user} title="Edit Project" logoUrl={logoUrl} companyName={companyName}>
       <div className="max-w-3xl mx-auto space-y-6 animate-fade-in">
         {/* Header */}
         <div className="flex items-center gap-4">

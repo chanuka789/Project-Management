@@ -18,6 +18,7 @@ import { StatCard } from '@/components/ui/stat-card';
 import { PerformanceChart } from '@/components/charts/performance-chart';
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '@/components/ui/table';
 import { formatCurrency, formatDate, calculateDaysRemaining, getProgressPercentage } from '@/lib/utils';
+import { useCompanySettings } from '@/hooks/use-company-settings';
 import {
   ArrowLeft,
   Calendar,
@@ -61,6 +62,7 @@ export default function ProjectDetailPage() {
     date: new Date().toISOString().split('T')[0],
   });
   const supabase = createClient();
+  const { companyName, logoUrl } = useCompanySettings();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -196,7 +198,7 @@ export default function ProjectDetailPage() {
 
   if (isLoading) {
     return (
-      <DashboardLayout user={user} title="Project Details">
+      <DashboardLayout user={user} title="Project Details" logoUrl={logoUrl} companyName={companyName}>
         <div className="flex items-center justify-center h-64">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0a5082]" />
         </div>
@@ -206,7 +208,7 @@ export default function ProjectDetailPage() {
 
   if (!project) {
     return (
-      <DashboardLayout user={user} title="Project Not Found">
+      <DashboardLayout user={user} title="Project Not Found" logoUrl={logoUrl} companyName={companyName}>
         <div className="text-center py-12">
           <p className="text-gray-500">Project not found</p>
           <Link href="/admin/projects">
@@ -220,7 +222,7 @@ export default function ProjectDetailPage() {
   const daysRemaining = calculateDaysRemaining(project.end_date);
 
   return (
-    <DashboardLayout user={user} title={project.name}>
+    <DashboardLayout user={user} title={project.name} logoUrl={logoUrl} companyName={companyName}>
       <div className="space-y-6 animate-fade-in">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">

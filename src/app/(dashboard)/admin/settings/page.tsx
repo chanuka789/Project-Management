@@ -16,6 +16,7 @@ import {
   Image,
 } from 'lucide-react';
 import type { User, CompanySettings } from '@/types/database';
+import { useCompanySettings } from '@/hooks/use-company-settings';
 
 export default function SettingsPage() {
   const [user, setUser] = useState<User | null>(null);
@@ -26,6 +27,7 @@ export default function SettingsPage() {
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const supabase = createClient();
+  const { companyName: currentCompanyName, logoUrl: currentLogoUrl } = useCompanySettings();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -135,7 +137,7 @@ export default function SettingsPage() {
 
   if (isLoading) {
     return (
-      <DashboardLayout user={user} title="Settings">
+      <DashboardLayout user={user} title="Settings" logoUrl={currentLogoUrl} companyName={currentCompanyName}>
         <div className="flex items-center justify-center h-64">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0a5082]" />
         </div>
@@ -144,7 +146,7 @@ export default function SettingsPage() {
   }
 
   return (
-    <DashboardLayout user={user} title="Settings">
+    <DashboardLayout user={user} title="Settings" logoUrl={currentLogoUrl} companyName={currentCompanyName}>
       <div className="max-w-3xl mx-auto space-y-6 animate-fade-in">
         {/* Header */}
         <div>

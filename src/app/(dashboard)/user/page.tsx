@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { TimeChart } from '@/components/charts/time-chart';
+import { useCompanySettings } from '@/hooks/use-company-settings';
 import { formatCurrency, formatDate, getProgressPercentage } from '@/lib/utils';
 import {
   Clock,
@@ -39,6 +40,7 @@ export default function UserDashboard() {
   const [user, setUser] = useState<User | null>(null);
   const [data, setData] = useState<UserDashboardData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const { companyName, logoUrl } = useCompanySettings();
   const supabase = createClient();
 
   useEffect(() => {
@@ -113,7 +115,7 @@ export default function UserDashboard() {
 
   if (isLoading) {
     return (
-      <DashboardLayout user={user} title="Dashboard">
+      <DashboardLayout user={user} title="Dashboard" logoUrl={logoUrl} companyName={companyName}>
         <div className="flex items-center justify-center h-64">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0a5082]" />
         </div>
@@ -143,7 +145,7 @@ export default function UserDashboard() {
   const totalCost = (data?.totalHours || 0) * (user?.hourly_rate || 0);
 
   return (
-    <DashboardLayout user={user} title="My Dashboard">
+    <DashboardLayout user={user} title="My Dashboard" logoUrl={logoUrl} companyName={companyName}>
       <div className="space-y-6 animate-fade-in">
         {/* Welcome */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
