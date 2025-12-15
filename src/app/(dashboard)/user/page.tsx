@@ -92,7 +92,7 @@ export default function UserDashboard() {
         const pendingTasks = (tasks || []).filter(t => t.status !== 'completed').length;
 
         setData({
-          assignedProjects: (projectUsers || []).map((pu: { projects: Project }) => pu.projects).filter(Boolean),
+          assignedProjects: (projectUsers || []).map((pu) => pu.projects as unknown as Project).filter(Boolean),
           tasks: tasks || [],
           timeEntries: timeEntries || [],
           totalHours,
