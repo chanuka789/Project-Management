@@ -12,6 +12,7 @@ import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { PerformanceChart } from '@/components/charts/performance-chart';
 import { FinanceChart } from '@/components/charts/finance-chart';
+import { useCompanySettings } from '@/hooks/use-company-settings';
 import { formatCurrency, formatDate, getProgressPercentage } from '@/lib/utils';
 import {
   FolderKanban,
@@ -41,6 +42,7 @@ export default function AdminDashboard() {
   const [user, setUser] = useState<User | null>(null);
   const [data, setData] = useState<DashboardData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const { companyName, logoUrl } = useCompanySettings();
   const supabase = createClient();
 
   useEffect(() => {
@@ -116,7 +118,12 @@ export default function AdminDashboard() {
 
   if (isLoading) {
     return (
-      <DashboardLayout user={user} title="Dashboard">
+      <DashboardLayout
+        user={user}
+        title="Dashboard"
+        logoUrl={logoUrl}
+        companyName={companyName}
+      >
         <div className="flex items-center justify-center h-64">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0a5082]" />
         </div>
@@ -142,7 +149,12 @@ export default function AdminDashboard() {
     : '0';
 
   return (
-    <DashboardLayout user={user} title="Admin Dashboard">
+    <DashboardLayout
+      user={user}
+      title="Admin Dashboard"
+      logoUrl={logoUrl}
+      companyName={companyName}
+    >
       <div className="space-y-6 animate-fade-in">
         {/* Welcome Section */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
