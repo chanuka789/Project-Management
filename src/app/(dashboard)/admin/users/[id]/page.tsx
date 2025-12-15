@@ -83,7 +83,7 @@ export default function UserDetailPage() {
 
           setUserDetails({
             ...userData,
-            assigned_projects: projectUsers?.map((pu: { projects: Project }) => pu.projects).filter(Boolean) || [],
+            assigned_projects: projectUsers?.map((pu) => pu.projects as unknown as Project).filter(Boolean) || [],
             time_entries: timeEntries || [],
             tasks: tasks || [],
           });
