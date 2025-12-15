@@ -63,24 +63,24 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#0a5082]/5 via-white to-[#0a5082]/10 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-primary/10 p-4">
       <div className="w-full max-w-md">
         {/* Logo */}
-        <div className="flex justify-center mb-8">
+        <div className="flex justify-center mb-6 sm:mb-8">
           <div className="flex items-center gap-3">
-            <div className="h-14 w-14 rounded-xl gradient-primary flex items-center justify-center shadow-lg">
-              <Building2 className="h-8 w-8 text-white" />
+            <div className="h-12 w-12 sm:h-14 sm:w-14 rounded-xl gradient-primary flex items-center justify-center shadow-lg">
+              <Building2 className="h-6 w-6 sm:h-8 sm:w-8 text-white" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-[#0a5082]">QS Consultancy</h1>
-              <p className="text-sm text-gray-500">Project Management System</p>
+              <h1 className="text-xl sm:text-2xl font-bold text-primary">QS Consultancy</h1>
+              <p className="text-xs sm:text-sm text-muted-foreground">Project Management System</p>
             </div>
           </div>
         </div>
 
-        <Card className="shadow-xl border-0">
-          <CardHeader className="text-center">
-            <CardTitle className="text-2xl">Welcome Back</CardTitle>
+        <Card className="shadow-xl">
+          <CardHeader className="text-center space-y-2">
+            <CardTitle className="text-xl sm:text-2xl">Welcome Back</CardTitle>
             <CardDescription>
               Sign in to your account to continue
             </CardDescription>
@@ -88,13 +88,13 @@ export default function LoginPage() {
           <CardContent>
             <form onSubmit={handleLogin} className="space-y-4">
               {error && (
-                <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-red-600 text-sm">
+                <div className="p-3 rounded-lg bg-error/10 border border-error/20 text-error text-sm">
                   {error}
                 </div>
               )}
 
               <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                 <Input
                   type="email"
                   placeholder="Email address"
@@ -106,7 +106,7 @@ export default function LoginPage() {
               </div>
 
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                 <Input
                   type="password"
                   placeholder="Password"
@@ -117,14 +117,14 @@ export default function LoginPage() {
                 />
               </div>
 
-              <div className="flex items-center justify-between">
-                <label className="flex items-center gap-2 text-sm text-gray-600">
-                  <input type="checkbox" className="rounded border-gray-300" />
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <input type="checkbox" className="rounded border-input" />
                   Remember me
                 </label>
                 <Link
                   href="/forgot-password"
-                  className="text-sm text-[#0a5082] hover:underline"
+                  className="text-sm text-primary hover:underline"
                 >
                   Forgot password?
                 </Link>
@@ -139,9 +139,9 @@ export default function LoginPage() {
                 Sign In
               </Button>
 
-              <p className="text-center text-sm text-gray-500">
+              <p className="text-center text-sm text-muted-foreground">
                 Don&apos;t have an account?{' '}
-                <Link href="/register" className="text-[#0a5082] font-medium hover:underline">
+                <Link href="/register" className="text-primary font-medium hover:underline">
                   Contact Admin
                 </Link>
               </p>
@@ -149,7 +149,7 @@ export default function LoginPage() {
           </CardContent>
         </Card>
 
-        <p className="text-center text-xs text-gray-400 mt-6">
+        <p className="text-center text-xs text-muted-foreground mt-6">
           &copy; {new Date().getFullYear()} QS Consultancy. All rights reserved.
         </p>
       </div>
