@@ -45,31 +45,32 @@
 }
 
 .dark {
-  /* Dark Mode Colors */
-  --background: #0a0a0a;
-  --foreground: #ededed;
-  --card: #171717;
-  --card-foreground: #ededed;
-  --muted: #262626;
-  --muted-foreground: #a3a3a3;
-  --border: #262626;
-  --input: #262626;
-  --input-background: #171717;
-  --ring: #1a6da8;
-  --accent: #262626;
-  --accent-foreground: #ededed;
-  --secondary: #262626;
-  --secondary-foreground: #ededed;
+  /* Dark Mode Colors - Redesigned for better contrast and beauty */
+  --background: #0f1419;
+  --foreground: #e6edf3;
+  --card: #1c2128;
+  --card-foreground: #e6edf3;
+  --muted: #2d333b;
+  --muted-foreground: #adbac7;
+  --border: #444c56;
+  --input: #2d333b;
+  --input-background: #1c2128;
+  --ring: #58a6ff;
+  --accent: #2d333b;
+  --accent-foreground: #e6edf3;
+  --secondary: #373e47;
+  --secondary-foreground: #e6edf3;
 
   /* Adjusted primary colors for dark mode */
-  --primary-light: #3387bf;
-  --primary-dark: #1a6da8;
+  --primary: #1f6feb;
+  --primary-light: #58a6ff;
+  --primary-dark: #0969da;
 
   /* Status Colors for dark mode */
-  --success: #22c55e;
-  --warning: #fbbf24;
-  --error: #f87171;
-  --destructive: #f87171;
+  --success: #3fb950;
+  --warning: #d29922;
+  --error: #f85149;
+  --destructive: #f85149;
 }
 
 @theme inline {
@@ -192,6 +193,12 @@ body {
               0 8px 10px -6px rgba(10, 80, 130, 0.1);
 }
 
+.dark .card-hover:hover {
+  box-shadow: 0 10px 25px -5px rgba(88, 166, 255, 0.2),
+              0 8px 10px -6px rgba(88, 166, 255, 0.15);
+  border-color: rgba(88, 166, 255, 0.3);
+}
+
 /* Gradient backgrounds using brand colors */
 .gradient-primary {
   background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
@@ -199,6 +206,14 @@ body {
 
 .gradient-primary-light {
   background: linear-gradient(135deg, var(--primary-light) 0%, var(--primary) 100%);
+}
+
+.dark .gradient-primary {
+  background: linear-gradient(135deg, #1f6feb 0%, #0969da 100%);
+}
+
+.dark .gradient-primary-light {
+  background: linear-gradient(135deg, #58a6ff 0%, #1f6feb 100%);
 }
 
 /* Glass effect */
@@ -209,11 +224,62 @@ body {
 }
 
 .dark .glass {
-  background: rgba(23, 23, 23, 0.8);
+  background: rgba(28, 33, 40, 0.9);
+  border: 1px solid rgba(68, 76, 86, 0.5);
 }
 
 /* Table styles */
 .table-header {
   background: var(--primary-50);
   border-bottom: 2px solid var(--primary);
+}
+
+.dark .table-header {
+  background: rgba(31, 111, 235, 0.1);
+  border-bottom: 2px solid rgba(88, 166, 255, 0.3);
+}
+
+/* Dark mode scrollbar */
+.dark ::-webkit-scrollbar-track {
+  background: #1c2128;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: #444c56;
+  border-radius: 4px;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #58a6ff;
+}
+
+/* Dark mode selection */
+.dark ::selection {
+  background: rgba(88, 166, 255, 0.3);
+  color: #e6edf3;
+}
+
+/* Dark mode focus styles */
+.dark *:focus-visible {
+  outline: 2px solid #58a6ff;
+  outline-offset: 2px;
+}
+
+/* Enhanced card styling for dark mode */
+.dark .bg-card {
+  background: linear-gradient(to bottom, #1c2128, #161b22);
+  border: 1px solid #30363d;
+}
+
+/* Dark mode button enhancements */
+.dark button:hover:not(:disabled) {
+  box-shadow: 0 0 0 2px rgba(88, 166, 255, 0.1);
+}
+
+/* Dark mode input focus */
+.dark input:focus,
+.dark textarea:focus,
+.dark select:focus {
+  border-color: #58a6ff;
+  box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.1);
 }
