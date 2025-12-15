@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client';
 import type { CompanySettings } from '@/types/database';
 
 export function useCompanySettings() {
-  const [companyName, setCompanyName] = useState<string>('QS Consultancy');
+  const [companyName, setCompanyName] = useState<string>('');
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const supabase = createClient();
@@ -21,10 +21,14 @@ export function useCompanySettings() {
         if (settings) {
           setCompanyName(settings.company_name || 'QS Consultancy');
           setLogoUrl(settings.logo_url || null);
+        } else {
+          // No settings found, use defaults
+          setCompanyName('QS Consultancy');
         }
       } catch (error) {
         console.error('Error fetching company settings:', error);
-        // Keep defaults if fetch fails
+        // Use defaults if fetch fails
+        setCompanyName('QS Consultancy');
       } finally {
         setIsLoading(false);
       }
