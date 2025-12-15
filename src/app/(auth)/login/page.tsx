@@ -32,12 +32,22 @@ export default function LoginPage() {
 
       if (data.user) {
         // Get user role to redirect appropriately
-        const { data: profile } = await supabase
+        const { data: profile, error: profileError } = await supabase
           .from('users')
           .select('role')
           .eq('id', data.user.id)
           .single();
 
+        if (profileError) {
+          console.error('Profile fetch error:', profileError);
+          // Default to user page if profile fetch fails
+          router.push('/user');
+          return;
+        }
+
+        console.log('User profile:', profile);
+        
+        // Add small delay to ensure navigation completes
         if (profile?.role === 'admin') {
           router.push('/admin');
         } else {
