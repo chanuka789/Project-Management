@@ -221,20 +221,20 @@ export default function TimesheetPage() {
                     }}
                     className={`p-4 rounded-lg text-center cursor-pointer transition-colors ${
                       isToday
-                        ? 'bg-[#0a5082] text-white'
+                        ? 'bg-primary text-white'
                         : hours > 0
-                        ? 'bg-[#0a5082]/10'
-                        : 'bg-gray-50 hover:bg-gray-100'
+                        ? 'bg-primary/10'
+                        : 'bg-muted hover:bg-muted/80'
                     }`}
                   >
-                    <p className={`text-xs font-medium ${isToday ? 'text-white/80' : 'text-gray-500'}`}>
+                    <p className={`text-xs font-medium ${isToday ? 'text-white/80' : 'text-muted-foreground'}`}>
                       {new Date(date).toLocaleDateString('en-US', { weekday: 'short' })}
                     </p>
-                    <p className={`text-lg font-bold mt-1 ${isToday ? 'text-white' : 'text-black'}`}>
+                    <p className={`text-lg font-bold mt-1 ${isToday ? 'text-white' : 'text-foreground'}`}>
                       {new Date(date).getDate()}
                     </p>
                     <p className={`text-sm font-medium mt-2 ${
-                      isToday ? 'text-white/90' : hours > 0 ? 'text-[#0a5082]' : 'text-gray-400'
+                      isToday ? 'text-white/90' : hours > 0 ? 'text-primary' : 'text-muted-foreground'
                     }`}>
                       {hours > 0 ? `${hours}h` : '-'}
                     </p>

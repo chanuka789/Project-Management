@@ -355,7 +355,246 @@ body {
   background: rgba(30, 41, 59, 0.8);
 }
 
-/* Smooth color transitions */
-.dark * {
-  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+/* Smooth color transitions - excluding page transitions */
+.dark *:not(.page-transition) {
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+/* ========================================== */
+/* DARK MODE - FIX ALL WHITE ELEMENTS */
+/* ========================================== */
+
+/* Fix white backgrounds */
+.dark .bg-white {
+  background: var(--card) !important;
+}
+
+/* Fix all gray backgrounds */
+.dark .bg-gray-100 {
+  background: rgba(30, 41, 59, 0.5) !important;
+}
+
+.dark .bg-green-50 {
+  background: rgba(34, 197, 94, 0.1) !important;
+}
+
+.dark .border-green-200 {
+  border-color: rgba(34, 197, 94, 0.3) !important;
+}
+
+.dark .text-green-800 {
+  color: #86efac !important;
+}
+
+.dark .text-green-700 {
+  color: #4ade80 !important;
+}
+
+/* Fix checkboxes in dark mode */
+.dark input[type="checkbox"] {
+  background-color: var(--input-background) !important;
+  border-color: var(--border) !important;
+}
+
+.dark input[type="checkbox"]:checked {
+  background-color: var(--primary) !important;
+  border-color: var(--primary) !important;
+}
+
+/* Fix date input calendar icon */
+.dark input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+}
+
+/* Fix select dropdown arrow */
+.dark select option {
+  background-color: var(--card) !important;
+  color: var(--foreground) !important;
+}
+
+/* Fix number input spinner */
+.dark input[type="number"]::-webkit-inner-spin-button,
+.dark input[type="number"]::-webkit-outer-spin-button {
+  filter: invert(1);
+}
+
+/* Additional panel and card fixes */
+.dark .divide-gray-100 > * {
+  border-color: var(--border) !important;
+}
+
+.dark .divide-gray-200 > * {
+  border-color: var(--border) !important;
+}
+
+/* Table row hover */
+.dark tr:hover {
+  background: rgba(59, 130, 246, 0.05) !important;
+}
+
+/* Fix modal overlay */
+.dark .bg-black\/50 {
+  background: rgba(0, 0, 0, 0.7) !important;
+}
+
+/* ========================================== */
+/* PAGE TRANSITIONS - SMOOTH & MODERN */
+/* ========================================== */
+
+/* Page transition wrapper */
+@keyframes pageEnter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pageFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Apply to main content areas */
+main,
+.page-content,
+[data-page-content] {
+  animation: pageEnter 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Sidebar stays fixed */
+aside {
+  animation: none !important;
+}
+
+/* Card entrance animation with stagger effect */
+.animate-fade-in {
+  animation: pageEnter 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Enhanced slide up for modals */
+.animate-slide-up {
+  animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Smooth link transitions */
+a {
+  transition: color 0.15s ease, opacity 0.15s ease;
+}
+
+/* Button and interactive element transitions */
+button,
+[role="button"] {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Card hover with smooth transition */
+.card-hover {
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+              border-color 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Smooth scaling for interactive elements */
+button:active:not(:disabled),
+[role="button"]:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+/* Stagger animation for list items */
+@keyframes staggerIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Apply stagger to table rows */
+tbody tr {
+  animation: staggerIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  animation-fill-mode: both;
+}
+
+tbody tr:nth-child(1) { animation-delay: 0.02s; }
+tbody tr:nth-child(2) { animation-delay: 0.04s; }
+tbody tr:nth-child(3) { animation-delay: 0.06s; }
+tbody tr:nth-child(4) { animation-delay: 0.08s; }
+tbody tr:nth-child(5) { animation-delay: 0.1s; }
+tbody tr:nth-child(6) { animation-delay: 0.12s; }
+tbody tr:nth-child(7) { animation-delay: 0.14s; }
+tbody tr:nth-child(8) { animation-delay: 0.16s; }
+tbody tr:nth-child(9) { animation-delay: 0.18s; }
+tbody tr:nth-child(10) { animation-delay: 0.2s; }
+
+/* Grid card stagger animation */
+.grid > * {
+  animation: staggerIn 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  animation-fill-mode: both;
+}
+
+.grid > *:nth-child(1) { animation-delay: 0.05s; }
+.grid > *:nth-child(2) { animation-delay: 0.1s; }
+.grid > *:nth-child(3) { animation-delay: 0.15s; }
+.grid > *:nth-child(4) { animation-delay: 0.2s; }
+.grid > *:nth-child(5) { animation-delay: 0.25s; }
+.grid > *:nth-child(6) { animation-delay: 0.3s; }
+
+/* Smooth sidebar link transitions */
+nav a {
+  transition: background-color 0.2s ease, color 0.2s ease, transform 0.2s ease;
+}
+
+nav a:hover {
+  transform: translateX(2px);
+}
+
+/* Loading spinner pulse */
+@keyframes spinnerPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite, spinnerPulse 1.5s ease-in-out infinite;
+}
+
+/* Fix remaining white/light elements in dark mode */
+.dark .ring-\[\#0a5082\]\/20 {
+  --tw-ring-color: rgba(59, 130, 246, 0.2) !important;
+}
+
+.dark .focus\:ring-\[\#0a5082\]\/20:focus {
+  --tw-ring-color: rgba(59, 130, 246, 0.2) !important;
+}
+
+.dark .border-\[\#0a5082\] {
+  border-color: #3b82f6 !important;
+}
+
+.dark .focus\:border-\[\#0a5082\]:focus {
+  border-color: #3b82f6 !important;
+}
+
+/* Dark mode primary color fixes */
+.dark .bg-\[\#0a5082\] {
+  background-color: #3b82f6 !important;
+}
+
+.dark .text-white\/80 {
+  color: rgba(255, 255, 255, 0.8) !important;
+}
+
+.dark .text-white\/90 {
+  color: rgba(255, 255, 255, 0.9) !important;
 }
