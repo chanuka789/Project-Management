@@ -27,6 +27,9 @@ import {
   MapPin,
   DollarSign,
   Save,
+  UserPlus,
+  Copy,
+  Check,
 } from 'lucide-react';
 import type { User } from '@/types/database';
 
@@ -49,8 +52,30 @@ export default function UsersPage() {
     role: 'user',
     hourly_rate: '',
   });
+  const [newUserForm, setNewUserForm] = useState({
+    full_name: '',
+    email: '',
+    phone: '',
+    location: '',
+    role: 'user',
+    hourly_rate: '',
+    password: '',
+  });
+  const [isCreating, setIsCreating] = useState(false);
+  const [createdUserCreds, setCreatedUserCreds] = useState<{ email: string; password: string } | null>(null);
+  const [copiedField, setCopiedField] = useState<string | null>(null);
   const supabase = createClient();
   const { companyName, logoUrl } = useCompanySettings();
+
+  // Generate a random password
+  const generatePassword = () => {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$%';
+    let password = '';
+    for (let i = 0; i < 12; i++) {
+      password += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return password;
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -170,6 +195,102 @@ export default function UsersPage() {
     }
   };
 
+  const handleOpenAddModal = () => {
+    const password = generatePassword();
+    setNewUserForm({
+      full_name: '',
+      email: '',
+      phone: '',
+      location: '',
+      role: 'user',
+      hourly_rate: '',
+      password,
+    });
+    setCreatedUserCreds(null);
+    setShowAddModal(true);
+  };
+
+  const handleCreateUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsCreating(true);
+
+    try {
+      // Create auth user using signUp
+      const { data: authData, error: signUpError } = await supabase.auth.signUp({
+        email: newUserForm.email,
+        password: newUserForm.password,
+        options: {
+          data: {
+            full_name: newUserForm.full_name,
+          },
+        },
+      });
+
+      if (signUpError) throw signUpError;
+
+      if (authData.user) {
+        // Create user profile in users table
+        const { error: profileError } = await supabase
+          .from('users')
+          .insert({
+            id: authData.user.id,
+            email: newUserForm.email,
+            full_name: newUserForm.full_name,
+            phone: newUserForm.phone || null,
+            location: newUserForm.location || null,
+            role: newUserForm.role,
+            hourly_rate: parseFloat(newUserForm.hourly_rate) || 0,
+          });
+
+        if (profileError) throw profileError;
+
+        // Show credentials to admin
+        setCreatedUserCreds({
+          email: newUserForm.email,
+          password: newUserForm.password,
+        });
+
+        // Refresh users list
+        const { data: updatedUsers } = await supabase
+          .from('users')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        setUsers(updatedUsers || []);
+      }
+    } catch (error: unknown) {
+      console.error('Error creating user:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to create user';
+      alert(errorMessage);
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
+  const handleCopyToClipboard = async (text: string, field: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedField(field);
+      setTimeout(() => setCopiedField(null), 2000);
+    } catch (error) {
+      console.error('Failed to copy:', error);
+    }
+  };
+
+  const handleCloseAddModal = () => {
+    setShowAddModal(false);
+    setCreatedUserCreds(null);
+    setNewUserForm({
+      full_name: '',
+      email: '',
+      phone: '',
+      location: '',
+      role: 'user',
+      hourly_rate: '',
+      password: '',
+    });
+  };
+
   const roleOptions = [
     { value: 'all', label: 'All Roles' },
     { value: 'admin', label: 'Admin' },
@@ -197,6 +318,10 @@ export default function UsersPage() {
               Manage team members, roles, and hourly rates
             </p>
           </div>
+          <Button onClick={handleOpenAddModal}>
+            <UserPlus className="h-4 w-4 mr-2" />
+            Add User
+          </Button>
         </div>
 
         {/* Filters */}
@@ -414,6 +539,153 @@ export default function UsersPage() {
               </Button>
             </div>
           </form>
+        </Modal>
+
+        {/* Add User Modal */}
+        <Modal
+          isOpen={showAddModal}
+          onClose={handleCloseAddModal}
+          title={createdUserCreds ? "User Created Successfully" : "Add New User"}
+          size="md"
+        >
+          {createdUserCreds ? (
+            <div className="space-y-4">
+              <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                <p className="text-green-800 font-medium mb-2">
+                  User has been created successfully!
+                </p>
+                <p className="text-sm text-green-700">
+                  Share the following credentials with the new user. They can change their password after logging in.
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div>
+                    <p className="text-xs text-gray-500 uppercase tracking-wide">Email</p>
+                    <p className="font-mono text-sm">{createdUserCreds.email}</p>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={() => handleCopyToClipboard(createdUserCreds.email, 'email')}
+                  >
+                    {copiedField === 'email' ? (
+                      <Check className="h-4 w-4 text-green-500" />
+                    ) : (
+                      <Copy className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
+
+                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div>
+                    <p className="text-xs text-gray-500 uppercase tracking-wide">Temporary Password</p>
+                    <p className="font-mono text-sm">{createdUserCreds.password}</p>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={() => handleCopyToClipboard(createdUserCreds.password, 'password')}
+                  >
+                    {copiedField === 'password' ? (
+                      <Check className="h-4 w-4 text-green-500" />
+                    ) : (
+                      <Copy className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
+              </div>
+
+              <div className="flex justify-end pt-4">
+                <Button onClick={handleCloseAddModal}>
+                  Done
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <form onSubmit={handleCreateUser} className="space-y-4">
+              <Input
+                label="Full Name"
+                value={newUserForm.full_name}
+                onChange={(e) => setNewUserForm({ ...newUserForm, full_name: e.target.value })}
+                placeholder="Enter full name"
+                required
+              />
+              <Input
+                label="Email"
+                type="email"
+                value={newUserForm.email}
+                onChange={(e) => setNewUserForm({ ...newUserForm, email: e.target.value })}
+                placeholder="Enter email address"
+                required
+              />
+              <div className="grid grid-cols-2 gap-4">
+                <Input
+                  label="Phone"
+                  value={newUserForm.phone}
+                  onChange={(e) => setNewUserForm({ ...newUserForm, phone: e.target.value })}
+                  placeholder="Enter phone number"
+                />
+                <Input
+                  label="Location"
+                  value={newUserForm.location}
+                  onChange={(e) => setNewUserForm({ ...newUserForm, location: e.target.value })}
+                  placeholder="Enter location"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <Select
+                  label="Role"
+                  value={newUserForm.role}
+                  onChange={(e) => setNewUserForm({ ...newUserForm, role: e.target.value })}
+                  options={[
+                    { value: 'user', label: 'User' },
+                    { value: 'admin', label: 'Admin' },
+                  ]}
+                />
+                <Input
+                  label="Hourly Rate (AED)"
+                  type="number"
+                  value={newUserForm.hourly_rate}
+                  onChange={(e) => setNewUserForm({ ...newUserForm, hourly_rate: e.target.value })}
+                  placeholder="0.00"
+                  min="0"
+                  step="0.01"
+                />
+              </div>
+              <div className="p-3 bg-gray-50 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-gray-500 uppercase tracking-wide">Generated Password</p>
+                    <p className="font-mono text-sm">{newUserForm.password}</p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setNewUserForm({ ...newUserForm, password: generatePassword() })}
+                  >
+                    Regenerate
+                  </Button>
+                </div>
+                <p className="text-xs text-gray-500 mt-2">
+                  This password will be shown after user creation. Make sure to share it securely.
+                </p>
+              </div>
+              <div className="flex justify-end gap-3 pt-4">
+                <Button type="button" variant="outline" onClick={handleCloseAddModal}>
+                  Cancel
+                </Button>
+                <Button type="submit" isLoading={isCreating}>
+                  <UserPlus className="h-4 w-4 mr-2" />
+                  Create User
+                </Button>
+              </div>
+            </form>
+          )}
         </Modal>
       </div>
     </DashboardLayout>

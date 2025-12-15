@@ -31,6 +31,9 @@ import {
   TrendingUp,
   ClipboardList,
   Save,
+  Building2,
+  UserPlus,
+  X,
 } from 'lucide-react';
 import type { User, Project, Task, TimeEntry, AdditionalCost } from '@/types/database';
 
@@ -61,6 +64,9 @@ export default function ProjectDetailPage() {
     amount: '',
     date: new Date().toISOString().split('T')[0],
   });
+  const [showUserModal, setShowUserModal] = useState(false);
+  const [allUsers, setAllUsers] = useState<User[]>([]);
+  const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
   const supabase = createClient();
   const { companyName, logoUrl } = useCompanySettings();
 
@@ -111,6 +117,14 @@ export default function ProjectDetailPage() {
             .select('*')
             .eq('project_id', projectId)
             .order('date', { ascending: false });
+
+          // Fetch all users for assignment
+          const { data: allUsersData } = await supabase
+            .from('users')
+            .select('*')
+            .order('full_name');
+
+          setAllUsers(allUsersData || []);
 
           setProject({
             ...projectData,
@@ -196,6 +210,65 @@ export default function ProjectDetailPage() {
     if (!error) window.location.reload();
   };
 
+  const handleOpenUserModal = () => {
+    setSelectedUserIds(project?.assigned_users.map(u => u.id) || []);
+    setShowUserModal(true);
+  };
+
+  const handleToggleUser = (userId: string) => {
+    setSelectedUserIds(prev =>
+      prev.includes(userId)
+        ? prev.filter(id => id !== userId)
+        : [...prev, userId]
+    );
+  };
+
+  const handleSaveUserAssignments = async () => {
+    try {
+      // Remove all current assignments
+      await supabase
+        .from('project_users')
+        .delete()
+        .eq('project_id', projectId);
+
+      // Add new assignments
+      if (selectedUserIds.length > 0) {
+        const newAssignments = selectedUserIds.map(userId => ({
+          project_id: projectId,
+          user_id: userId,
+        }));
+
+        const { error } = await supabase
+          .from('project_users')
+          .insert(newAssignments);
+
+        if (error) throw error;
+      }
+
+      setShowUserModal(false);
+      window.location.reload();
+    } catch (error) {
+      console.error('Error updating user assignments:', error);
+      alert('Failed to update user assignments');
+    }
+  };
+
+  const handleRemoveUser = async (userId: string) => {
+    if (!confirm('Remove this user from the project?')) return;
+    try {
+      const { error } = await supabase
+        .from('project_users')
+        .delete()
+        .eq('project_id', projectId)
+        .eq('user_id', userId);
+
+      if (error) throw error;
+      window.location.reload();
+    } catch (error) {
+      console.error('Error removing user:', error);
+    }
+  };
+
   if (isLoading) {
     return (
       <DashboardLayout user={user} title="Project Details" logoUrl={logoUrl} companyName={companyName}>
@@ -239,7 +312,15 @@ export default function ProjectDetailPage() {
                   {project.status.replace('_', ' ')}
                 </Badge>
               </div>
-              <p className="text-gray-500 mt-1">{project.description}</p>
+              {project.client_name && (
+                <div className="flex items-center gap-2 mt-1">
+                  <Building2 className="h-4 w-4 text-gray-400" />
+                  <span className="text-gray-600 font-medium">{project.client_name}</span>
+                </div>
+              )}
+              {project.description && (
+                <p className="text-gray-500 mt-1">{project.description}</p>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -308,6 +389,10 @@ export default function ProjectDetailPage() {
                 <Users className="h-5 w-5 text-[#0a5082]" />
                 Team Members ({project.assigned_users.length})
               </CardTitle>
+              <Button onClick={handleOpenUserModal} size="sm">
+                <UserPlus className="h-4 w-4 mr-1" />
+                Manage Team
+              </Button>
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
@@ -318,7 +403,7 @@ export default function ProjectDetailPage() {
                   const memberCost = memberHours * member.hourly_rate;
 
                   return (
-                    <div key={member.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div key={member.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg group">
                       <div className="flex items-center gap-3">
                         <Avatar name={member.full_name} src={member.avatar_url} />
                         <div>
@@ -328,9 +413,17 @@ export default function ProjectDetailPage() {
                           </p>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <p className="font-medium text-[#0a5082]">{memberHours.toFixed(1)} hrs</p>
-                        <p className="text-sm text-gray-500">{formatCurrency(memberCost)}</p>
+                      <div className="flex items-center gap-3">
+                        <div className="text-right">
+                          <p className="font-medium text-[#0a5082]">{memberHours.toFixed(1)} hrs</p>
+                          <p className="text-sm text-gray-500">{formatCurrency(memberCost)}</p>
+                        </div>
+                        <button
+                          onClick={() => handleRemoveUser(member.id)}
+                          className="opacity-0 group-hover:opacity-100 p-1 text-red-500 hover:bg-red-50 rounded transition-opacity"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
                       </div>
                     </div>
                   );
@@ -615,6 +708,60 @@ export default function ProjectDetailPage() {
               </Button>
             </div>
           </form>
+        </Modal>
+
+        {/* Manage Team Modal */}
+        <Modal
+          isOpen={showUserModal}
+          onClose={() => setShowUserModal(false)}
+          title="Manage Team Members"
+          size="md"
+        >
+          <div className="space-y-4">
+            <p className="text-sm text-gray-500">
+              Select users to assign to this project. They will be able to log time and view project details.
+            </p>
+            <div className="max-h-80 overflow-y-auto border border-gray-200 rounded-lg">
+              {allUsers.map((u) => {
+                const isSelected = selectedUserIds.includes(u.id);
+                return (
+                  <label
+                    key={u.id}
+                    className="flex items-center gap-3 p-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => handleToggleUser(u.id)}
+                      className="rounded border-gray-300 text-primary focus:ring-primary"
+                    />
+                    <Avatar name={u.full_name} src={u.avatar_url} size="sm" />
+                    <div className="flex-1">
+                      <p className="font-medium text-black">{u.full_name}</p>
+                      <p className="text-xs text-gray-500">{u.email}</p>
+                    </div>
+                    <Badge variant={u.role === 'admin' ? 'primary' : 'secondary'} className="text-xs">
+                      {u.role}
+                    </Badge>
+                  </label>
+                );
+              })}
+            </div>
+            <div className="flex justify-between items-center pt-4 border-t border-gray-200">
+              <p className="text-sm text-gray-500">
+                {selectedUserIds.length} user{selectedUserIds.length !== 1 ? 's' : ''} selected
+              </p>
+              <div className="flex gap-3">
+                <Button type="button" variant="outline" onClick={() => setShowUserModal(false)}>
+                  Cancel
+                </Button>
+                <Button onClick={handleSaveUserAssignments}>
+                  <Save className="h-4 w-4 mr-2" />
+                  Save Changes
+                </Button>
+              </div>
+            </div>
+          </div>
         </Modal>
       </div>
     </DashboardLayout>

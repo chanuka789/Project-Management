@@ -73,6 +73,16 @@ export default function SettingsPage() {
     }
   };
 
+  // Helper function to convert file to base64
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = error => reject(error);
+    });
+  };
+
   const handleSave = async () => {
     setIsSaving(true);
 
@@ -81,21 +91,53 @@ export default function SettingsPage() {
 
       // Upload logo if new file selected
       if (logoFile) {
-        const fileExt = logoFile.name.split('.').pop();
-        const fileName = `logo-${Date.now()}.${fileExt}`;
+        // Check file size (max 2MB for base64, larger for storage)
+        const maxSize = 2 * 1024 * 1024; // 2MB
+        if (logoFile.size > maxSize) {
+          alert('File size too large. Please use an image under 2MB.');
+          setIsSaving(false);
+          return;
+        }
 
-        const { data: uploadData, error: uploadError } = await supabase.storage
-          .from('company-assets')
-          .upload(fileName, logoFile, { upsert: true });
+        // Try storage upload first
+        try {
+          const fileExt = logoFile.name.split('.').pop();
+          const fileName = `logo-${Date.now()}.${fileExt}`;
 
-        if (uploadError) throw uploadError;
+          // Check if bucket exists by listing files
+          const { error: listError } = await supabase.storage
+            .from('company-assets')
+            .list();
 
-        // Get public URL
-        const { data: { publicUrl } } = supabase.storage
-          .from('company-assets')
-          .getPublicUrl(fileName);
+          if (listError) {
+            console.log('Storage bucket not available, using base64 fallback');
+            // Fallback to base64 encoding
+            const base64 = await fileToBase64(logoFile);
+            uploadedLogoUrl = base64;
+          } else {
+            const { error: uploadError } = await supabase.storage
+              .from('company-assets')
+              .upload(fileName, logoFile, { upsert: true });
 
-        uploadedLogoUrl = publicUrl;
+            if (uploadError) {
+              console.log('Storage upload failed, using base64 fallback:', uploadError);
+              // Fallback to base64 encoding
+              const base64 = await fileToBase64(logoFile);
+              uploadedLogoUrl = base64;
+            } else {
+              // Get public URL
+              const { data: { publicUrl } } = supabase.storage
+                .from('company-assets')
+                .getPublicUrl(fileName);
+              uploadedLogoUrl = publicUrl;
+            }
+          }
+        } catch (storageError) {
+          console.log('Storage error, using base64 fallback:', storageError);
+          // Fallback to base64 encoding
+          const base64 = await fileToBase64(logoFile);
+          uploadedLogoUrl = base64;
+        }
       }
 
       // Update or insert settings
@@ -120,11 +162,14 @@ export default function SettingsPage() {
         if (error) throw error;
       }
 
+      // Update local state
+      setLogoUrl(uploadedLogoUrl);
+      setSettings({ ...settings, company_name: companyName, logo_url: uploadedLogoUrl } as CompanySettings);
       alert('Settings saved successfully!');
       setLogoFile(null);
     } catch (error) {
       console.error('Error saving settings:', error);
-      alert('Failed to save settings');
+      alert('Failed to save settings. Please try again.');
     } finally {
       setIsSaving(false);
     }
