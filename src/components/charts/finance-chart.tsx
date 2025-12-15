@@ -8,6 +8,8 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
+  NameType,
+  ValueType,
 } from 'recharts';
 import { formatCurrency } from '@/lib/utils';
 
@@ -58,7 +60,12 @@ export function FinanceChart({ data, title }: FinanceChartProps) {
               boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
             }}
             labelStyle={{ color: '#171717', fontWeight: 600 }}
-            formatter={(value: number) => formatCurrency(value)}
+            formatter={(value: ValueType, name: NameType) => {
+              if (typeof value === 'number') {
+                return [formatCurrency(value), name as string];
+              }
+              return [formatCurrency(0), name as string]; // Fallback for undefined values
+            }}
           />
           <Area
             type="monotone"
