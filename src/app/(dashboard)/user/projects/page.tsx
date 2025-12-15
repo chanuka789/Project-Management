@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { EmptyState } from '@/components/ui/empty-state';
+import { useCompanySettings } from '@/hooks/use-company-settings';
 import { formatCurrency, formatDate, calculateDaysRemaining, getProgressPercentage } from '@/lib/utils';
 import {
   FolderKanban,
@@ -27,6 +28,7 @@ export default function UserProjectsPage() {
   const [user, setUser] = useState<User | null>(null);
   const [projects, setProjects] = useState<ProjectWithDetails[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const { companyName, logoUrl } = useCompanySettings();
   const supabase = createClient();
 
   useEffect(() => {
@@ -95,7 +97,7 @@ export default function UserProjectsPage() {
 
   if (isLoading) {
     return (
-      <DashboardLayout user={user} title="My Projects">
+      <DashboardLayout user={user} title="My Projects" logoUrl={logoUrl} companyName={companyName}>
         <div className="flex items-center justify-center h-64">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0a5082]" />
         </div>
@@ -104,7 +106,7 @@ export default function UserProjectsPage() {
   }
 
   return (
-    <DashboardLayout user={user} title="My Projects">
+    <DashboardLayout user={user} title="My Projects" logoUrl={logoUrl} companyName={companyName}>
       <div className="space-y-6 animate-fade-in">
         {/* Header */}
         <div>
