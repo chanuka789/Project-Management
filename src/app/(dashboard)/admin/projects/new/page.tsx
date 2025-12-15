@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select } from '@/components/ui/select';
 import { ArrowLeft, Save } from 'lucide-react';
+import { useCompanySettings } from '@/hooks/use-company-settings';
 import Link from 'next/link';
 import type { User } from '@/types/database';
 
