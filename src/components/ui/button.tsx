@@ -11,14 +11,14 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 const Button = forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant = 'primary', size = 'md', isLoading, children, disabled, ...props }, ref) => {
-    const baseStyles = 'inline-flex items-center justify-center font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0a5082] focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed';
+    const baseStyles = 'inline-flex items-center justify-center font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed';
 
     const variants = {
-      primary: 'bg-[#0a5082] text-white hover:bg-[#084068] active:bg-[#063a5e] shadow-sm',
-      secondary: 'bg-black text-white hover:bg-black/90 active:bg-black/80 shadow-sm',
-      outline: 'border-2 border-[#0a5082] text-[#0a5082] bg-transparent hover:bg-[#0a5082] hover:text-white',
-      ghost: 'text-[#0a5082] hover:bg-[#0a5082]/10 active:bg-[#0a5082]/20',
-      link: 'text-[#0a5082] underline-offset-4 hover:underline p-0 h-auto',
+      primary: 'bg-primary text-white hover:bg-primary-dark active:bg-primary-dark shadow-sm',
+      secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/80 active:bg-secondary/70 shadow-sm',
+      outline: 'border-2 border-primary text-primary bg-transparent hover:bg-primary hover:text-white',
+      ghost: 'text-primary hover:bg-accent active:bg-accent/80',
+      link: 'text-primary underline-offset-4 hover:underline p-0 h-auto',
     };
 
     const sizes = {

@@ -58,7 +58,7 @@ export function Sidebar({ role, logoUrl, companyName = 'QS Consultancy' }: Sideb
       {/* Mobile menu button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="lg:hidden fixed top-4 left-4 z-50 p-2 rounded-lg bg-white shadow-md text-[#0a5082]"
+        className="lg:hidden fixed top-4 left-4 z-50 p-2 rounded-lg bg-card shadow-md text-primary border border-border"
       >
         {isOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
       </button>
@@ -74,12 +74,12 @@ export function Sidebar({ role, logoUrl, companyName = 'QS Consultancy' }: Sideb
       {/* Sidebar */}
       <aside
         className={cn(
-          'fixed lg:static inset-y-0 left-0 z-40 w-64 bg-white border-r border-gray-200 flex flex-col transition-transform duration-300',
+          'fixed lg:static inset-y-0 left-0 z-40 w-64 bg-card border-r border-border flex flex-col transition-transform duration-300',
           isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         )}
       >
         {/* Logo */}
-        <div className="h-16 flex items-center justify-center border-b border-gray-200 px-4">
+        <div className="h-16 flex items-center justify-center border-b border-border px-4">
           {logoUrl ? (
             <img
               src={logoUrl}
@@ -91,7 +91,7 @@ export function Sidebar({ role, logoUrl, companyName = 'QS Consultancy' }: Sideb
               <div className="h-10 w-10 rounded-lg gradient-primary flex items-center justify-center">
                 <span className="text-white font-bold text-lg">QS</span>
               </div>
-              <span className="font-semibold text-black truncate">{companyName}</span>
+              <span className="font-semibold text-foreground truncate">{companyName}</span>
             </div>
           )}
         </div>
@@ -111,8 +111,8 @@ export function Sidebar({ role, logoUrl, companyName = 'QS Consultancy' }: Sideb
                 className={cn(
                   'flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200',
                   isActive
-                    ? 'bg-[#0a5082] text-white shadow-md'
-                    : 'text-gray-600 hover:bg-[#0a5082]/10 hover:text-[#0a5082]'
+                    ? 'bg-primary text-white shadow-md'
+                    : 'text-muted-foreground hover:bg-accent hover:text-primary'
                 )}
               >
                 <Icon className="h-5 w-5" />
@@ -123,10 +123,10 @@ export function Sidebar({ role, logoUrl, companyName = 'QS Consultancy' }: Sideb
         </nav>
 
         {/* Logout */}
-        <div className="p-4 border-t border-gray-200">
+        <div className="p-4 border-t border-border">
           <button
             onClick={handleLogout}
-            className="flex items-center gap-3 px-4 py-3 w-full rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100 transition-colors"
+            className="flex items-center gap-3 px-4 py-3 w-full rounded-lg text-sm font-medium text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
           >
             <LogOut className="h-5 w-5" />
             Sign Out

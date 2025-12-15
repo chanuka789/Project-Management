@@ -10,7 +10,7 @@ const Card = forwardRef<HTMLDivElement, CardProps>(
     <div
       ref={ref}
       className={cn(
-        'rounded-xl border border-gray-200 bg-white shadow-sm',
+        'rounded-xl border border-border bg-card shadow-sm',
         hover && 'card-hover cursor-pointer',
         className
       )}
@@ -35,7 +35,7 @@ const CardTitle = forwardRef<HTMLHeadingElement, HTMLAttributes<HTMLHeadingEleme
   ({ className, ...props }, ref) => (
     <h3
       ref={ref}
-      className={cn('text-lg font-semibold leading-none tracking-tight text-black', className)}
+      className={cn('text-lg font-semibold leading-none tracking-tight text-card-foreground', className)}
       {...props}
     />
   )
@@ -46,7 +46,7 @@ const CardDescription = forwardRef<HTMLParagraphElement, HTMLAttributes<HTMLPara
   ({ className, ...props }, ref) => (
     <p
       ref={ref}
-      className={cn('text-sm text-gray-500', className)}
+      className={cn('text-sm text-muted-foreground', className)}
       {...props}
     />
   )
