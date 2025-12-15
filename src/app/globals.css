@@ -45,32 +45,46 @@
 }
 
 .dark {
-  /* Dark Mode Colors - Redesigned for better contrast and beauty */
-  --background: #0f1419;
-  --foreground: #e6edf3;
-  --card: #1c2128;
-  --card-foreground: #e6edf3;
-  --muted: #2d333b;
-  --muted-foreground: #adbac7;
-  --border: #444c56;
-  --input: #2d333b;
-  --input-background: #1c2128;
-  --ring: #58a6ff;
-  --accent: #2d333b;
-  --accent-foreground: #e6edf3;
-  --secondary: #373e47;
-  --secondary-foreground: #e6edf3;
+  /* Dark Mode Colors - Beautiful modern design */
+  --background: #0a0f1a;
+  --foreground: #f1f5f9;
+  --card: #111827;
+  --card-foreground: #f1f5f9;
+  --muted: #1e293b;
+  --muted-foreground: #94a3b8;
+  --border: #1e3a5f;
+  --input: #1e293b;
+  --input-background: #0f172a;
+  --ring: #3b82f6;
+  --accent: #1e3a5f;
+  --accent-foreground: #f1f5f9;
+  --secondary: #1e293b;
+  --secondary-foreground: #e2e8f0;
 
-  /* Adjusted primary colors for dark mode */
-  --primary: #1f6feb;
-  --primary-light: #58a6ff;
-  --primary-dark: #0969da;
+  /* Primary colors for dark mode - vibrant blue */
+  --primary: #3b82f6;
+  --primary-light: #60a5fa;
+  --primary-dark: #2563eb;
+  --primary-50: rgba(59, 130, 246, 0.1);
+  --primary-100: rgba(59, 130, 246, 0.2);
+  --primary-200: rgba(59, 130, 246, 0.3);
+  --primary-300: #93c5fd;
+  --primary-400: #60a5fa;
+  --primary-500: #3b82f6;
+  --primary-600: #2563eb;
+  --primary-700: #1d4ed8;
+  --primary-800: #1e40af;
+  --primary-900: #1e3a8a;
 
-  /* Status Colors for dark mode */
-  --success: #3fb950;
-  --warning: #d29922;
-  --error: #f85149;
-  --destructive: #f85149;
+  /* Status Colors for dark mode - more vibrant */
+  --success: #22c55e;
+  --success-foreground: #ffffff;
+  --warning: #eab308;
+  --warning-foreground: #000000;
+  --error: #ef4444;
+  --error-foreground: #ffffff;
+  --destructive: #dc2626;
+  --destructive-foreground: #ffffff;
 }
 
 @theme inline {
@@ -194,9 +208,10 @@ body {
 }
 
 .dark .card-hover:hover {
-  box-shadow: 0 10px 25px -5px rgba(88, 166, 255, 0.2),
-              0 8px 10px -6px rgba(88, 166, 255, 0.15);
-  border-color: rgba(88, 166, 255, 0.3);
+  box-shadow: 0 10px 40px -10px rgba(59, 130, 246, 0.4),
+              0 4px 20px -5px rgba(59, 130, 246, 0.3);
+  border-color: rgba(59, 130, 246, 0.5);
+  transform: translateY(-4px);
 }
 
 /* Gradient backgrounds using brand colors */
@@ -209,11 +224,11 @@ body {
 }
 
 .dark .gradient-primary {
-  background: linear-gradient(135deg, #1f6feb 0%, #0969da 100%);
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
 }
 
 .dark .gradient-primary-light {
-  background: linear-gradient(135deg, #58a6ff 0%, #1f6feb 100%);
+  background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%);
 }
 
 /* Glass effect */
@@ -224,8 +239,10 @@ body {
 }
 
 .dark .glass {
-  background: rgba(28, 33, 40, 0.9);
-  border: 1px solid rgba(68, 76, 86, 0.5);
+  background: rgba(17, 24, 39, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(59, 130, 246, 0.2);
 }
 
 /* Table styles */
@@ -235,51 +252,110 @@ body {
 }
 
 .dark .table-header {
-  background: rgba(31, 111, 235, 0.1);
-  border-bottom: 2px solid rgba(88, 166, 255, 0.3);
+  background: rgba(59, 130, 246, 0.1);
+  border-bottom: 2px solid rgba(59, 130, 246, 0.4);
 }
 
 /* Dark mode scrollbar */
 .dark ::-webkit-scrollbar-track {
-  background: #1c2128;
+  background: #0f172a;
 }
 
 .dark ::-webkit-scrollbar-thumb {
-  background: #444c56;
+  background: linear-gradient(180deg, #334155 0%, #1e293b 100%);
   border-radius: 4px;
+  border: 1px solid rgba(59, 130, 246, 0.2);
 }
 
 .dark ::-webkit-scrollbar-thumb:hover {
-  background: #58a6ff;
+  background: linear-gradient(180deg, #3b82f6 0%, #2563eb 100%);
 }
 
 /* Dark mode selection */
 .dark ::selection {
-  background: rgba(88, 166, 255, 0.3);
-  color: #e6edf3;
+  background: rgba(59, 130, 246, 0.4);
+  color: #f1f5f9;
 }
 
 /* Dark mode focus styles */
 .dark *:focus-visible {
-  outline: 2px solid #58a6ff;
+  outline: 2px solid #3b82f6;
   outline-offset: 2px;
 }
 
 /* Enhanced card styling for dark mode */
 .dark .bg-card {
-  background: linear-gradient(to bottom, #1c2128, #161b22);
-  border: 1px solid #30363d;
+  background: linear-gradient(145deg, #111827 0%, #0f172a 100%);
+  border: 1px solid rgba(59, 130, 246, 0.15);
 }
 
 /* Dark mode button enhancements */
 .dark button:hover:not(:disabled) {
-  box-shadow: 0 0 0 2px rgba(88, 166, 255, 0.1);
+  box-shadow: 0 0 20px -5px rgba(59, 130, 246, 0.3);
 }
 
 /* Dark mode input focus */
 .dark input:focus,
 .dark textarea:focus,
 .dark select:focus {
-  border-color: #58a6ff;
-  box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.1);
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15), 0 0 20px -5px rgba(59, 130, 246, 0.3);
+}
+
+/* Dark mode card and panel backgrounds */
+.dark .bg-gray-50 {
+  background: rgba(30, 41, 59, 0.5) !important;
+}
+
+.dark .hover\:bg-gray-50:hover {
+  background: rgba(30, 58, 95, 0.5) !important;
+}
+
+.dark .border-gray-100 {
+  border-color: rgba(59, 130, 246, 0.15) !important;
+}
+
+.dark .border-gray-200 {
+  border-color: rgba(59, 130, 246, 0.2) !important;
+}
+
+/* Dark mode text colors */
+.dark .text-black {
+  color: #f1f5f9 !important;
+}
+
+.dark .text-gray-400 {
+  color: #64748b !important;
+}
+
+.dark .text-gray-500 {
+  color: #94a3b8 !important;
+}
+
+.dark .text-gray-600 {
+  color: #cbd5e1 !important;
+}
+
+/* Dark mode primary accent color */
+.dark .text-\[\#0a5082\] {
+  color: #60a5fa !important;
+}
+
+.dark .bg-\[\#0a5082\]\/10 {
+  background: rgba(59, 130, 246, 0.15) !important;
+}
+
+/* Dark mode stat cards glow effect */
+.dark .rounded-xl.border {
+  box-shadow: 0 0 30px -15px rgba(59, 130, 246, 0.2);
+}
+
+/* Dark mode progress bars */
+.dark [role="progressbar"] {
+  background: rgba(30, 41, 59, 0.8);
+}
+
+/* Smooth color transitions */
+.dark * {
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
 }

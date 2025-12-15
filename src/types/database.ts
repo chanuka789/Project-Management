@@ -18,6 +18,7 @@ export interface User {
 export interface Project {
   id: string;
   name: string;
+  client_name?: string;
   description?: string;
   start_date: string;
   end_date: string;

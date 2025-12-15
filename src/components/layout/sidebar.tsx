@@ -35,6 +35,7 @@ export function Sidebar({ role, logoUrl, companyName = 'QS Consultancy' }: Sideb
     { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/admin/projects', label: 'Projects', icon: FolderKanban },
     { href: '/admin/users', label: 'Users', icon: Users },
+    { href: '/admin/timesheet', label: 'Timesheet', icon: Clock },
     { href: '/admin/finance', label: 'Finance', icon: DollarSign },
     { href: '/admin/settings', label: 'Settings', icon: Settings },
   ];

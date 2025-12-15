@@ -29,6 +29,7 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE TABLE IF NOT EXISTS projects (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name VARCHAR(255) NOT NULL,
+    client_name VARCHAR(255),
     description TEXT,
     start_date DATE NOT NULL,
     end_date DATE NOT NULL,
@@ -39,6 +40,15 @@ CREATE TABLE IF NOT EXISTS projects (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW()),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW())
 );
+
+-- Add client_name column if not exists (migration for existing databases)
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                   WHERE table_name = 'projects' AND column_name = 'client_name') THEN
+        ALTER TABLE projects ADD COLUMN client_name VARCHAR(255);
+    END IF;
+END $$;
 
 -- =====================================================
 -- PROJECT_USERS TABLE (Many-to-Many)
@@ -206,8 +216,8 @@ CREATE POLICY "View time entries" ON time_entries
 CREATE POLICY "Users can manage own time entries" ON time_entries
     FOR ALL USING (user_id = auth.uid());
 
-CREATE POLICY "Admins can view all time entries" ON time_entries
-    FOR SELECT USING (
+CREATE POLICY "Admins can manage all time entries" ON time_entries
+    FOR ALL USING (
         EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role = 'admin')
     );
 

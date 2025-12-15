@@ -20,6 +20,7 @@ export default function NewProjectPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [formData, setFormData] = useState({
     name: '',
+    client_name: '',
     description: '',
     start_date: new Date().toISOString().split('T')[0],
     end_date: '',
@@ -66,6 +67,7 @@ export default function NewProjectPage() {
         .from('projects')
         .insert({
           name: formData.name,
+          client_name: formData.client_name || null,
           description: formData.description || null,
           start_date: formData.start_date,
           end_date: formData.end_date,
@@ -139,6 +141,14 @@ export default function NewProjectPage() {
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 placeholder="Enter project name"
                 required
+              />
+
+              {/* Client Name */}
+              <Input
+                label="Client Name"
+                value={formData.client_name}
+                onChange={(e) => setFormData({ ...formData, client_name: e.target.value })}
+                placeholder="Enter client name"
               />
 
               {/* Description */}

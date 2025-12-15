@@ -24,6 +24,7 @@ import {
   Eye,
   Edit,
   Trash2,
+  Building2,
 } from 'lucide-react';
 import type { User, Project } from '@/types/database';
 
@@ -73,7 +74,8 @@ export default function ProjectsPage() {
     if (searchTerm) {
       filtered = filtered.filter(p =>
         p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        p.description?.toLowerCase().includes(searchTerm.toLowerCase())
+        p.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        p.client_name?.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
 
@@ -216,6 +218,12 @@ export default function ProjectsPage() {
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-4">
+                    {project.client_name && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <Building2 className="h-4 w-4 text-gray-400" />
+                        <span className="text-gray-600 font-medium">{project.client_name}</span>
+                      </div>
+                    )}
                     {project.description && (
                       <p className="text-sm text-gray-500 line-clamp-2">
                         {project.description}
