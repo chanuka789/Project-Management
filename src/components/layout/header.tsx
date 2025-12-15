@@ -1,8 +1,8 @@
 'use client';
 
-import { Bell, Search, Settings } from 'lucide-react';
+import { Bell, Settings } from 'lucide-react';
 import { Avatar } from '@/components/ui/avatar';
-import { Input } from '@/components/ui/input';
+import { GlobalSearch } from '@/components/ui/search';
 import { SimpleThemeToggle, ThemeToggle } from '@/components/ui/theme-toggle';
 import type { User } from '@/types/database';
 
@@ -18,25 +18,27 @@ export function Header({ user, title, logoUrl, companyName }: HeaderProps) {
     <header className="h-16 bg-card border-b border-border flex items-center justify-between px-4 sm:px-6">
       {/* Left side - Company Branding */}
       <div className="flex items-center gap-3 sm:gap-4">
-        {/* Company Logo and Name - visible on mobile */}
-        <div className="flex items-center gap-2 lg:hidden">
-          {logoUrl ? (
-            <img
-              src={logoUrl}
-              alt={companyName || 'Company'}
-              className="h-8 w-8 object-contain"
-            />
-          ) : (
-            <div className="h-8 w-8 rounded-lg gradient-primary flex items-center justify-center">
-              <span className="text-white font-bold text-sm">
-                {companyName?.substring(0, 2).toUpperCase() || 'QS'}
-              </span>
-            </div>
-          )}
-          <span className="text-sm font-semibold text-foreground truncate max-w-[100px] sm:max-w-[150px]">
-            {companyName || 'QS Consultancy'}
-          </span>
-        </div>
+        {/* Company Logo and Name - visible on mobile, only show when loaded */}
+        {companyName && (
+          <div className="flex items-center gap-2 lg:hidden">
+            {logoUrl ? (
+              <img
+                src={logoUrl}
+                alt={companyName}
+                className="h-8 w-8 object-contain"
+              />
+            ) : (
+              <div className="h-8 w-8 rounded-lg gradient-primary flex items-center justify-center">
+                <span className="text-white font-bold text-sm">
+                  {companyName.substring(0, 2).toUpperCase()}
+                </span>
+              </div>
+            )}
+            <span className="text-sm font-semibold text-foreground truncate max-w-[100px] sm:max-w-[150px]">
+              {companyName}
+            </span>
+          </div>
+        )}
 
         {/* Page Title - visible on desktop */}
         <h1 className="text-xl font-semibold text-foreground hidden lg:block">
@@ -46,14 +48,7 @@ export function Header({ user, title, logoUrl, companyName }: HeaderProps) {
 
       {/* Search (hidden on mobile) */}
       <div className="hidden md:flex flex-1 max-w-md mx-8">
-        <div className="relative w-full">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            type="search"
-            placeholder="Search projects, users..."
-            className="pl-10 bg-muted border-border"
-          />
-        </div>
+        <GlobalSearch />
       </div>
 
       {/* Right side */}
