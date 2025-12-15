@@ -9,13 +9,36 @@ import type { User } from '@/types/database';
 interface HeaderProps {
   user: User | null;
   title?: string;
+  logoUrl?: string | null;
+  companyName?: string;
 }
 
-export function Header({ user, title }: HeaderProps) {
+export function Header({ user, title, logoUrl, companyName }: HeaderProps) {
   return (
     <header className="h-16 bg-card border-b border-border flex items-center justify-between px-4 sm:px-6">
-      {/* Left side */}
-      <div className="flex items-center gap-4">
+      {/* Left side - Company Branding */}
+      <div className="flex items-center gap-3 sm:gap-4">
+        {/* Company Logo and Name - visible on mobile */}
+        <div className="flex items-center gap-2 lg:hidden">
+          {logoUrl ? (
+            <img
+              src={logoUrl}
+              alt={companyName || 'Company'}
+              className="h-8 w-8 object-contain"
+            />
+          ) : (
+            <div className="h-8 w-8 rounded-lg gradient-primary flex items-center justify-center">
+              <span className="text-white font-bold text-sm">
+                {companyName?.substring(0, 2).toUpperCase() || 'QS'}
+              </span>
+            </div>
+          )}
+          <span className="text-sm font-semibold text-foreground truncate max-w-[100px] sm:max-w-[150px]">
+            {companyName || 'QS Consultancy'}
+          </span>
+        </div>
+
+        {/* Page Title - visible on desktop */}
         <h1 className="text-xl font-semibold text-foreground hidden lg:block">
           {title || 'Dashboard'}
         </h1>
