@@ -15,6 +15,7 @@ import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '@
 import { EmptyState } from '@/components/ui/empty-state';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { useCompanySettings } from '@/hooks/use-company-settings';
+import { PasswordConfirmModal } from '@/components/ui/password-confirm-modal';
 import {
   Plus,
   Search,
@@ -64,6 +65,8 @@ export default function UsersPage() {
   const [isCreating, setIsCreating] = useState(false);
   const [createdUserCreds, setCreatedUserCreds] = useState<{ email: string; password: string } | null>(null);
   const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<User | null>(null);
   const supabase = createClient();
   const { companyName, logoUrl } = useCompanySettings();
 
@@ -172,27 +175,32 @@ export default function UsersPage() {
     }
   };
 
-  const handleDelete = async (userId: string) => {
-    if (userId === currentUser?.id) {
+  const handleDeleteClick = (user: User) => {
+    if (user.id === currentUser?.id) {
       alert('You cannot delete your own account');
       return;
     }
+    setUserToDelete(user);
+    setDeleteModalOpen(true);
+  };
 
-    if (!confirm('Are you sure you want to delete this user? This action cannot be undone.')) return;
+  const handleDeleteConfirm = async () => {
+    if (!userToDelete) return;
 
     try {
       const { error } = await supabase
         .from('users')
         .delete()
-        .eq('id', userId);
+        .eq('id', userToDelete.id);
 
       if (error) throw error;
 
-      setUsers(users.filter(u => u.id !== userId));
+      setUsers(users.filter(u => u.id !== userToDelete.id));
     } catch (error) {
       console.error('Error deleting user:', error);
       alert('Failed to delete user');
     }
+    setUserToDelete(null);
   };
 
   const handleOpenAddModal = () => {
@@ -446,7 +454,7 @@ export default function UsersPage() {
                               variant="ghost"
                               size="icon"
                               className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50"
-                              onClick={() => handleDelete(user.id)}
+                              onClick={() => handleDeleteClick(user)}
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
@@ -687,6 +695,19 @@ export default function UsersPage() {
             </form>
           )}
         </Modal>
+
+        {/* Password Confirmation Modal */}
+        <PasswordConfirmModal
+          isOpen={deleteModalOpen}
+          onClose={() => {
+            setDeleteModalOpen(false);
+            setUserToDelete(null);
+          }}
+          onConfirm={handleDeleteConfirm}
+          title="Delete User"
+          description="This will permanently delete this user and all their associated data including time entries and task assignments."
+          itemName={userToDelete?.full_name}
+        />
       </div>
     </DashboardLayout>
   );

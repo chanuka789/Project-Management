@@ -13,6 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { Modal } from '@/components/ui/modal';
 import { Avatar } from '@/components/ui/avatar';
 import { useCompanySettings } from '@/hooks/use-company-settings';
+import { PasswordConfirmModal } from '@/components/ui/password-confirm-modal';
 import { formatDate, formatCurrency } from '@/lib/utils';
 import {
   Plus,
@@ -53,6 +54,8 @@ export default function AdminTimesheetPage() {
     description: '',
     date: new Date().toISOString().split('T')[0],
   });
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [entryToDelete, setEntryToDelete] = useState<TimeEntryWithDetails | null>(null);
   const supabase = createClient();
   const { companyName, logoUrl } = useCompanySettings();
 
@@ -148,13 +151,19 @@ export default function AdminTimesheetPage() {
     }
   };
 
-  const handleDelete = async (entryId: string) => {
-    if (!confirm('Delete this time entry?')) return;
+  const handleDeleteClick = (entry: TimeEntryWithDetails) => {
+    setEntryToDelete(entry);
+    setDeleteModalOpen(true);
+  };
 
-    const { error } = await supabase.from('time_entries').delete().eq('id', entryId);
+  const handleDeleteConfirm = async () => {
+    if (!entryToDelete) return;
+
+    const { error } = await supabase.from('time_entries').delete().eq('id', entryToDelete.id);
     if (!error) {
-      setTimeEntries(timeEntries.filter(te => te.id !== entryId));
+      setTimeEntries(timeEntries.filter(te => te.id !== entryToDelete.id));
     }
+    setEntryToDelete(null);
   };
 
   const changeWeek = (direction: 'prev' | 'next') => {
@@ -400,7 +409,7 @@ export default function AdminTimesheetPage() {
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8 text-red-500"
-                          onClick={() => handleDelete(entry.id)}
+                          onClick={() => handleDeleteClick(entry)}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -485,6 +494,19 @@ export default function AdminTimesheetPage() {
             </div>
           </form>
         </Modal>
+
+        {/* Password Confirmation Modal */}
+        <PasswordConfirmModal
+          isOpen={deleteModalOpen}
+          onClose={() => {
+            setDeleteModalOpen(false);
+            setEntryToDelete(null);
+          }}
+          onConfirm={handleDeleteConfirm}
+          title="Delete Time Entry"
+          description="This will permanently delete this time entry."
+          itemName={entryToDelete ? `${entryToDelete.hours} hours on ${formatDate(entryToDelete.date)}` : undefined}
+        />
       </div>
     </DashboardLayout>
   );

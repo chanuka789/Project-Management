@@ -175,7 +175,7 @@ export default function FinancePage() {
   })) || [];
 
   const costBreakdownData = [
-    { name: 'Labor Cost', value: financeData?.totalLaborCost || 0 },
+    { name: 'Salaries', value: financeData?.totalLaborCost || 0 },
     { name: 'Additional Cost', value: financeData?.totalAdditionalCost || 0 },
   ];
 
@@ -207,7 +207,7 @@ export default function FinancePage() {
             title="Total Costs"
             value={formatCurrency(financeData?.totalCost || 0)}
             icon={<TrendingDown className="h-5 w-5" />}
-            description={`Labor: ${formatCurrency(financeData?.totalLaborCost || 0)}`}
+            description={`Salaries: ${formatCurrency(financeData?.totalLaborCost || 0)}`}
           />
           <StatCard
             title="Total Profit"
@@ -288,7 +288,7 @@ export default function FinancePage() {
                   <TableHead>Project</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Contract Value</TableHead>
-                  <TableHead className="text-right">Labor Cost</TableHead>
+                  <TableHead className="text-right">Salaries</TableHead>
                   <TableHead className="text-right">Additional Cost</TableHead>
                   <TableHead className="text-right">Total Cost</TableHead>
                   <TableHead className="text-right">Profit</TableHead>

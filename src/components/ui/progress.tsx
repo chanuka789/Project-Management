@@ -21,8 +21,8 @@ const Progress = forwardRef<HTMLDivElement, ProgressProps>(
 
     const variants = {
       default: 'bg-[#0a5082]',
-      success: 'bg-[#0a5082]',
-      warning: 'bg-black/70',
+      success: 'bg-green-500',
+      warning: 'bg-red-500',
     };
 
     return (
