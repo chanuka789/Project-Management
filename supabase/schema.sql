@@ -214,12 +214,34 @@ CREATE POLICY "View time entries" ON time_entries
     );
 
 CREATE POLICY "Users can manage own time entries" ON time_entries
-    FOR ALL USING (user_id = auth.uid());
+    FOR ALL USING (user_id = auth.uid())
+    WITH CHECK (user_id = auth.uid());
 
+-- Admin policy with explicit WITH CHECK for INSERT operations
 CREATE POLICY "Admins can manage all time entries" ON time_entries
     FOR ALL USING (
         EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role = 'admin')
+    )
+    WITH CHECK (
+        EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role = 'admin')
     );
+
+-- =====================================================
+-- MIGRATION: Fix RLS policies for existing databases
+-- Run these commands in Supabase SQL Editor if admin
+-- cannot insert time entries for other users:
+-- =====================================================
+-- DROP POLICY IF EXISTS "Users can manage own time entries" ON time_entries;
+-- DROP POLICY IF EXISTS "Admins can manage all time entries" ON time_entries;
+--
+-- CREATE POLICY "Users can manage own time entries" ON time_entries
+--     FOR ALL USING (user_id = auth.uid())
+--     WITH CHECK (user_id = auth.uid());
+--
+-- CREATE POLICY "Admins can manage all time entries" ON time_entries
+--     FOR ALL USING (EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role = 'admin'))
+--     WITH CHECK (EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role = 'admin'));
+-- =====================================================
 
 -- ADDITIONAL_COSTS POLICIES
 CREATE POLICY "View additional costs" ON additional_costs
