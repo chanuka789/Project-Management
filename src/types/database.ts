@@ -79,6 +79,57 @@ export interface CompanySettings {
   updated_at: string;
 }
 
+// Client and Payment types
+export interface Client {
+  id: string;
+  name: string;
+  company_name?: string;
+  emails: string[]; // Multiple emails
+  phones: string[]; // Multiple phone numbers
+  address?: string;
+  notes?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export type PaymentStatus = 'pending' | 'partial' | 'paid' | 'overdue';
+export type PaymentMethod = 'bank_transfer' | 'cash' | 'cheque' | 'credit_card' | 'other';
+
+export interface Payment {
+  id: string;
+  project_id: string;
+  client_id?: string;
+  amount: number;
+  payment_date: string;
+  due_date?: string;
+  status: PaymentStatus;
+  payment_method?: PaymentMethod;
+  reference_number?: string;
+  description?: string;
+  invoice_number?: string;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PaymentWithDetails extends Payment {
+  project?: Project;
+  client?: Client;
+}
+
+export interface ProjectPaymentSummary {
+  project_id: string;
+  project_name: string;
+  client_name?: string;
+  contract_value: number;
+  total_paid: number;
+  total_pending: number;
+  balance_due: number;
+  payment_percentage: number;
+  status: Project['status'];
+  payments: Payment[];
+}
+
 // Extended types with joins
 export interface ProjectWithDetails extends Project {
   assigned_users?: User[];
