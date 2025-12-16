@@ -14,6 +14,7 @@ import {
   LogOut,
   Menu,
   X,
+  Receipt,
 } from 'lucide-react';
 import { useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
@@ -36,6 +37,7 @@ export function Sidebar({ role, logoUrl, companyName = 'QS Consultancy' }: Sideb
     { href: '/admin/projects', label: 'Projects', icon: FolderKanban },
     { href: '/admin/users', label: 'Users', icon: Users },
     { href: '/admin/timesheet', label: 'Timesheet', icon: Clock },
+    { href: '/admin/payments', label: 'Payments', icon: Receipt },
     { href: '/admin/finance', label: 'Finance', icon: DollarSign },
     { href: '/admin/settings', label: 'Settings', icon: Settings },
   ];

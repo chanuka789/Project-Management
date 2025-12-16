@@ -119,6 +119,43 @@ CREATE TABLE IF NOT EXISTS company_settings (
 );
 
 -- =====================================================
+-- CLIENTS TABLE (For client contact details)
+-- =====================================================
+CREATE TABLE IF NOT EXISTS clients (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(255) NOT NULL,
+    company_name VARCHAR(255),
+    emails TEXT[] DEFAULT '{}',
+    phones TEXT[] DEFAULT '{}',
+    address TEXT,
+    notes TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW()),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW())
+);
+
+-- =====================================================
+-- PAYMENTS TABLE (For tracking client payments)
+-- =====================================================
+CREATE TABLE IF NOT EXISTS payments (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    client_id UUID REFERENCES clients(id) ON DELETE SET NULL,
+    amount DECIMAL(15,2) NOT NULL CHECK (amount > 0),
+    payment_date DATE NOT NULL,
+    due_date DATE,
+    status VARCHAR(20) NOT NULL DEFAULT 'pending'
+        CHECK (status IN ('pending', 'partial', 'paid', 'overdue')),
+    payment_method VARCHAR(20)
+        CHECK (payment_method IN ('bank_transfer', 'cash', 'cheque', 'credit_card', 'other')),
+    reference_number VARCHAR(100),
+    invoice_number VARCHAR(100),
+    description TEXT,
+    created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW()),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW())
+);
+
+-- =====================================================
 -- INDEXES FOR PERFORMANCE
 -- =====================================================
 CREATE INDEX IF NOT EXISTS idx_projects_status ON projects(status);
@@ -131,6 +168,11 @@ CREATE INDEX IF NOT EXISTS idx_time_entries_project_id ON time_entries(project_i
 CREATE INDEX IF NOT EXISTS idx_time_entries_date ON time_entries(date);
 CREATE INDEX IF NOT EXISTS idx_project_users_user_id ON project_users(user_id);
 CREATE INDEX IF NOT EXISTS idx_additional_costs_project_id ON additional_costs(project_id);
+CREATE INDEX IF NOT EXISTS idx_payments_project_id ON payments(project_id);
+CREATE INDEX IF NOT EXISTS idx_payments_client_id ON payments(client_id);
+CREATE INDEX IF NOT EXISTS idx_payments_status ON payments(status);
+CREATE INDEX IF NOT EXISTS idx_payments_payment_date ON payments(payment_date);
+CREATE INDEX IF NOT EXISTS idx_clients_name ON clients(name);
 
 -- =====================================================
 -- ROW LEVEL SECURITY (RLS) POLICIES
@@ -144,6 +186,8 @@ ALTER TABLE tasks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE time_entries ENABLE ROW LEVEL SECURITY;
 ALTER TABLE additional_costs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE company_settings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE clients ENABLE ROW LEVEL SECURITY;
+ALTER TABLE payments ENABLE ROW LEVEL SECURITY;
 
 -- USERS POLICIES
 CREATE POLICY "Users can view all users" ON users
@@ -263,6 +307,28 @@ CREATE POLICY "Admins can update company settings" ON company_settings
         EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role = 'admin')
     );
 
+-- CLIENTS POLICIES
+CREATE POLICY "Admins can view clients" ON clients
+    FOR SELECT USING (
+        EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role = 'admin')
+    );
+
+CREATE POLICY "Admins can manage clients" ON clients
+    FOR ALL USING (
+        EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role = 'admin')
+    );
+
+-- PAYMENTS POLICIES
+CREATE POLICY "Admins can view payments" ON payments
+    FOR SELECT USING (
+        EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role = 'admin')
+    );
+
+CREATE POLICY "Admins can manage payments" ON payments
+    FOR ALL USING (
+        EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role = 'admin')
+    );
+
 -- =====================================================
 -- FUNCTIONS FOR AUTOMATIC TIMESTAMPS
 -- =====================================================
@@ -285,6 +351,12 @@ CREATE TRIGGER update_tasks_updated_at BEFORE UPDATE ON tasks
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 CREATE TRIGGER update_time_entries_updated_at BEFORE UPDATE ON time_entries
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_clients_updated_at BEFORE UPDATE ON clients
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_payments_updated_at BEFORE UPDATE ON payments
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- =====================================================
