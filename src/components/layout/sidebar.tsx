@@ -72,10 +72,10 @@ export function Sidebar({ role, logoUrl, companyName = 'QS Consultancy' }: Sideb
         />
       )}
 
-      {/* Sidebar */}
+      {/* Sidebar - Always fixed on desktop for consistency */}
       <aside
         className={cn(
-          'fixed lg:static inset-y-0 left-0 z-40 w-64 bg-card border-r border-border flex flex-col transition-transform duration-300',
+          'fixed inset-y-0 left-0 z-40 w-64 bg-card border-r border-border flex flex-col transition-transform duration-300 will-change-transform',
           isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         )}
       >

@@ -21,23 +21,25 @@ export function DashboardLayout({
   companyName,
 }: DashboardLayoutProps) {
   return (
-    <div className="min-h-screen bg-background flex">
-      {/* Sidebar */}
+    <div className="min-h-screen bg-background">
+      {/* Sidebar - Fixed position */}
       <Sidebar
         role={user?.role || 'user'}
         logoUrl={logoUrl}
         companyName={companyName}
       />
 
-      {/* Main content */}
-      <div className="flex-1 flex flex-col min-h-screen lg:ml-0">
+      {/* Main content - offset for fixed sidebar on large screens */}
+      <div className="flex flex-col min-h-screen lg:ml-64">
+        {/* Header - sticky within main content */}
         <Header
           user={user}
           title={title}
           logoUrl={logoUrl}
           companyName={companyName}
         />
-        <main className="flex-1 p-4 sm:p-6 overflow-auto">
+        {/* Page content with smooth transitions */}
+        <main className="flex-1 p-4 sm:p-6 overflow-auto page-content">
           {children}
         </main>
       </div>
