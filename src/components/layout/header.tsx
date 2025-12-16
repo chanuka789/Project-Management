@@ -15,7 +15,7 @@ interface HeaderProps {
 
 export function Header({ user, title, logoUrl, companyName }: HeaderProps) {
   return (
-    <header className="h-16 bg-card border-b border-border flex items-center justify-between px-4 sm:px-6">
+    <header className="sticky top-0 z-30 h-16 bg-card/95 backdrop-blur-sm border-b border-border flex items-center justify-between px-4 sm:px-6">
       {/* Left side - Company Branding */}
       <div className="flex items-center gap-3 sm:gap-4">
         {/* Company Logo and Name - visible on mobile, only show when loaded */}
