@@ -19,6 +19,7 @@ import { PerformanceChart } from '@/components/charts/performance-chart';
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '@/components/ui/table';
 import { formatCurrency, formatDate, calculateDaysRemaining, getProgressPercentage } from '@/lib/utils';
 import { useCompanySettings } from '@/hooks/use-company-settings';
+import { PasswordConfirmModal } from '@/components/ui/password-confirm-modal';
 import {
   ArrowLeft,
   Calendar,
@@ -67,6 +68,10 @@ export default function ProjectDetailPage() {
   const [showUserModal, setShowUserModal] = useState(false);
   const [allUsers, setAllUsers] = useState<User[]>([]);
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
+  const [deleteCostModalOpen, setDeleteCostModalOpen] = useState(false);
+  const [costToDelete, setCostToDelete] = useState<AdditionalCost | null>(null);
+  const [removeUserModalOpen, setRemoveUserModalOpen] = useState(false);
+  const [userToRemove, setUserToRemove] = useState<User | null>(null);
   const supabase = createClient();
   const { companyName, logoUrl } = useCompanySettings();
 
@@ -199,10 +204,16 @@ export default function ProjectDetailPage() {
     }
   };
 
-  const handleDeleteCost = async (costId: string) => {
-    if (!confirm('Delete this cost entry?')) return;
-    const { error } = await supabase.from('additional_costs').delete().eq('id', costId);
+  const handleDeleteCostClick = (cost: AdditionalCost) => {
+    setCostToDelete(cost);
+    setDeleteCostModalOpen(true);
+  };
+
+  const handleDeleteCostConfirm = async () => {
+    if (!costToDelete) return;
+    const { error } = await supabase.from('additional_costs').delete().eq('id', costToDelete.id);
     if (!error) window.location.reload();
+    setCostToDelete(null);
   };
 
   const handleUpdateTaskStatus = async (taskId: string, status: string) => {
@@ -253,20 +264,26 @@ export default function ProjectDetailPage() {
     }
   };
 
-  const handleRemoveUser = async (userId: string) => {
-    if (!confirm('Remove this user from the project?')) return;
+  const handleRemoveUserClick = (user: User) => {
+    setUserToRemove(user);
+    setRemoveUserModalOpen(true);
+  };
+
+  const handleRemoveUserConfirm = async () => {
+    if (!userToRemove) return;
     try {
       const { error } = await supabase
         .from('project_users')
         .delete()
         .eq('project_id', projectId)
-        .eq('user_id', userId);
+        .eq('user_id', userToRemove.id);
 
       if (error) throw error;
       window.location.reload();
     } catch (error) {
       console.error('Error removing user:', error);
     }
+    setUserToRemove(null);
   };
 
   if (isLoading) {
@@ -293,6 +310,8 @@ export default function ProjectDetailPage() {
   }
 
   const daysRemaining = calculateDaysRemaining(project.end_date);
+  const isCompleted = project.status === 'completed';
+  const isOverdue = daysRemaining < 0 && !isCompleted && project.status !== 'cancelled';
 
   return (
     <DashboardLayout user={user} title={project.name} logoUrl={logoUrl} companyName={companyName}>
@@ -344,7 +363,7 @@ export default function ProjectDetailPage() {
             title="Total Cost"
             value={formatCurrency(totalCost)}
             icon={<TrendingUp className="h-5 w-5" />}
-            description={`Labor: ${formatCurrency(laborCost)}`}
+            description={`Salaries: ${formatCurrency(laborCost)}`}
           />
           <StatCard
             title="Profit"
@@ -356,7 +375,7 @@ export default function ProjectDetailPage() {
             title="Total Hours"
             value={`${totalHours.toFixed(1)} hrs`}
             icon={<Clock className="h-5 w-5" />}
-            description={daysRemaining >= 0 ? `${daysRemaining} days left` : `${Math.abs(daysRemaining)} days overdue`}
+            description={isCompleted ? 'Completed' : isOverdue ? `${Math.abs(daysRemaining)} days overdue` : `${daysRemaining} days left`}
           />
         </div>
 
@@ -419,7 +438,7 @@ export default function ProjectDetailPage() {
                           <p className="text-sm text-gray-500">{formatCurrency(memberCost)}</p>
                         </div>
                         <button
-                          onClick={() => handleRemoveUser(member.id)}
+                          onClick={() => handleRemoveUserClick(member)}
                           className="opacity-0 group-hover:opacity-100 p-1 text-red-500 hover:bg-red-50 rounded transition-opacity"
                         >
                           <X className="h-4 w-4" />
@@ -590,7 +609,7 @@ export default function ProjectDetailPage() {
                         variant="ghost"
                         size="icon"
                         className="h-8 w-8 text-red-500"
-                        onClick={() => handleDeleteCost(cost.id)}
+                        onClick={() => handleDeleteCostClick(cost)}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -763,6 +782,32 @@ export default function ProjectDetailPage() {
             </div>
           </div>
         </Modal>
+
+        {/* Password Confirmation Modal for Cost Deletion */}
+        <PasswordConfirmModal
+          isOpen={deleteCostModalOpen}
+          onClose={() => {
+            setDeleteCostModalOpen(false);
+            setCostToDelete(null);
+          }}
+          onConfirm={handleDeleteCostConfirm}
+          title="Delete Additional Cost"
+          description="This will permanently delete this cost entry."
+          itemName={costToDelete?.description}
+        />
+
+        {/* Password Confirmation Modal for User Removal */}
+        <PasswordConfirmModal
+          isOpen={removeUserModalOpen}
+          onClose={() => {
+            setRemoveUserModalOpen(false);
+            setUserToRemove(null);
+          }}
+          onConfirm={handleRemoveUserConfirm}
+          title="Remove Team Member"
+          description="This will remove this user from the project. Their time entries will remain."
+          itemName={userToRemove?.full_name}
+        />
       </div>
     </DashboardLayout>
   );

@@ -151,8 +151,19 @@ export default function UserProjectsPage() {
                         <Calendar className="h-4 w-4" />
                         {formatDate(project.start_date)} - {formatDate(project.end_date)}
                       </div>
-                      <span className={daysRemaining >= 0 ? 'text-[#0a5082] font-medium' : 'text-red-500 font-medium'}>
-                        {daysRemaining >= 0 ? `${daysRemaining} days left` : `${Math.abs(daysRemaining)} days overdue`}
+                      <span className={
+                        project.status === 'completed'
+                          ? 'text-green-600 font-medium'
+                          : daysRemaining >= 0
+                            ? 'text-[#0a5082] font-medium'
+                            : 'text-red-500 font-medium'
+                      }>
+                        {project.status === 'completed'
+                          ? 'Completed'
+                          : daysRemaining >= 0
+                            ? `${daysRemaining} days left`
+                            : `${Math.abs(daysRemaining)} days overdue`
+                        }
                       </span>
                     </div>
 

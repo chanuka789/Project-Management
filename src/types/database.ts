@@ -86,7 +86,7 @@ export interface ProjectWithDetails extends Project {
   time_entries?: TimeEntry[];
   additional_costs?: AdditionalCost[];
   total_hours?: number;
-  total_labor_cost?: number;
+  total_salaries?: number;
   total_additional_cost?: number;
   total_cost?: number;
   profit?: number;

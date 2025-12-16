@@ -13,6 +13,7 @@ import { Progress } from '@/components/ui/progress';
 import { EmptyState } from '@/components/ui/empty-state';
 import { formatCurrency, formatDate, calculateDaysRemaining } from '@/lib/utils';
 import { useCompanySettings } from '@/hooks/use-company-settings';
+import { PasswordConfirmModal } from '@/components/ui/password-confirm-modal';
 import {
   Plus,
   Search,
@@ -35,6 +36,8 @@ export default function ProjectsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [projectToDelete, setProjectToDelete] = useState<Project | null>(null);
   const supabase = createClient();
   const { companyName, logoUrl } = useCompanySettings();
 
@@ -86,17 +89,23 @@ export default function ProjectsPage() {
     setFilteredProjects(filtered);
   }, [searchTerm, statusFilter, projects]);
 
-  const handleDelete = async (projectId: string) => {
-    if (!confirm('Are you sure you want to delete this project?')) return;
+  const handleDeleteClick = (project: Project) => {
+    setProjectToDelete(project);
+    setDeleteModalOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!projectToDelete) return;
 
     const { error } = await supabase
       .from('projects')
       .delete()
-      .eq('id', projectId);
+      .eq('id', projectToDelete.id);
 
     if (!error) {
-      setProjects(projects.filter(p => p.id !== projectId));
+      setProjects(projects.filter(p => p.id !== projectToDelete.id));
     }
+    setProjectToDelete(null);
   };
 
   const statusOptions = [
@@ -188,7 +197,9 @@ export default function ProjectsPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
             {filteredProjects.map((project) => {
               const daysRemaining = calculateDaysRemaining(project.end_date);
-              const isOverdue = daysRemaining < 0;
+              // Don't show as overdue if project is completed or cancelled
+              const isOverdue = daysRemaining < 0 && project.status !== 'completed' && project.status !== 'cancelled';
+              const isCompleted = project.status === 'completed';
 
               return (
                 <Card key={project.id} hover className="relative group">
@@ -249,17 +260,19 @@ export default function ProjectsPage() {
                     <div>
                       <div className="flex justify-between text-sm mb-1">
                         <span className="text-gray-500">Progress</span>
-                        <span className={isOverdue ? 'text-black font-medium' : 'text-[#0a5082] font-medium'}>
-                          {isOverdue
-                            ? `${Math.abs(daysRemaining)} days overdue`
-                            : `${daysRemaining} days left`
+                        <span className={isOverdue ? 'text-red-500 font-medium' : isCompleted ? 'text-green-600 font-medium' : 'text-[#0a5082] font-medium'}>
+                          {isCompleted
+                            ? 'Completed'
+                            : isOverdue
+                              ? `${Math.abs(daysRemaining)} days overdue`
+                              : `${daysRemaining} days left`
                           }
                         </span>
                       </div>
                       <Progress
-                        value={project.status === 'completed' ? 100 : Math.min(50, 100)}
+                        value={isCompleted ? 100 : Math.min(50, 100)}
                         size="sm"
-                        variant={isOverdue ? 'warning' : 'default'}
+                        variant={isOverdue ? 'warning' : isCompleted ? 'success' : 'default'}
                       />
                     </div>
 
@@ -280,7 +293,7 @@ export default function ProjectsPage() {
                         variant="ghost"
                         size="icon"
                         className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50"
-                        onClick={() => handleDelete(project.id)}
+                        onClick={() => handleDeleteClick(project)}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -292,6 +305,19 @@ export default function ProjectsPage() {
           </div>
         )}
       </div>
+
+      {/* Password Confirmation Modal */}
+      <PasswordConfirmModal
+        isOpen={deleteModalOpen}
+        onClose={() => {
+          setDeleteModalOpen(false);
+          setProjectToDelete(null);
+        }}
+        onConfirm={handleDeleteConfirm}
+        title="Delete Project"
+        description="This will permanently delete this project and all associated data including tasks, time entries, and costs."
+        itemName={projectToDelete?.name}
+      />
     </DashboardLayout>
   );
 }
