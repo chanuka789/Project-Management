@@ -108,21 +108,43 @@ export default function AdminTimesheetPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const { error } = await supabase.from('time_entries').insert({
+      // Validate required fields
+      if (!formData.user_id || !formData.project_id || !formData.hours || !formData.date) {
+        alert('Please fill in all required fields');
+        return;
+      }
+
+      const hours = parseFloat(formData.hours);
+      if (isNaN(hours) || hours <= 0 || hours > 24) {
+        alert('Hours must be between 0.5 and 24');
+        return;
+      }
+
+      const { data, error } = await supabase.from('time_entries').insert({
         user_id: formData.user_id,
         project_id: formData.project_id,
-        hours: parseFloat(formData.hours),
+        hours: hours,
         description: formData.description || null,
         date: formData.date,
-      });
+      }).select();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error:', error);
+        // Check for RLS policy error
+        if (error.code === '42501' || error.message?.includes('policy')) {
+          alert('Permission denied. Please ensure the admin RLS policy is set up correctly.\n\nRun this SQL in Supabase:\nDROP POLICY IF EXISTS "Admins can manage all time entries" ON time_entries;\nCREATE POLICY "Admins can manage all time entries" ON time_entries FOR ALL USING (EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role = \'admin\')) WITH CHECK (EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role = \'admin\'));');
+        } else {
+          alert(`Failed to add time entry: ${error.message}`);
+        }
+        return;
+      }
 
-      // Refresh data
+      // Close modal and refresh data
+      setShowModal(false);
       window.location.reload();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error adding time entry:', error);
-      alert('Failed to add time entry');
+      alert(`Failed to add time entry: ${error?.message || 'Unknown error'}`);
     }
   };
 
