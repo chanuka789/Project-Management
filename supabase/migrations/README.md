@@ -13,7 +13,19 @@ This directory contains SQL migration files that need to be run in your Supabase
 
 ## Available Migrations
 
-### fix_projects_rls.sql
+### add_client_name_column.sql ⚠️ **RUN THIS FIRST**
+**Purpose:** Adds the `client_name` column to the projects table.
+
+**Issue:** Missing column causes "Could not find the 'client_name' column of 'projects' in the schema cache" error.
+
+**Required:** Yes, if you see the client_name column error.
+
+**Run this migration if:**
+- You see "Could not find the 'client_name' column" error
+- Project creation or editing fails due to missing column
+- Your database was created before this column was added to the schema
+
+### fix_projects_rls.sql ⚠️ **REQUIRED**
 **Purpose:** Fixes the Row Level Security (RLS) policy for the projects table to allow admins to update project details after creation.
 
 **Issue:** Without an explicit `WITH CHECK` clause, PostgreSQL RLS prevents UPDATE operations from completing properly.
@@ -34,9 +46,10 @@ This directory contains SQL migration files that need to be run in your Supabase
 
 ## Migration Order
 
-If running multiple migrations, execute them in this order:
-1. fix_time_entries_rls.sql
-2. fix_projects_rls.sql
+⚠️ **IMPORTANT:** Execute migrations in this exact order:
+1. **add_client_name_column.sql** (Add missing column first)
+2. **fix_projects_rls.sql** (Fix RLS policy for project updates)
+3. **fix_time_entries_rls.sql** (Optional: Only if needed for time entries)
 
 ## Verification
 
