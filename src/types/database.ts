@@ -123,6 +123,44 @@ export interface PaymentWithDetails extends Payment {
   client?: Client;
 }
 
+// User Payment Types (payments issued to team members)
+export type UserPaymentType = 'salary' | 'bonus' | 'reimbursement' | 'advance' | 'commission' | 'other';
+export type UserPaymentStatus = 'pending' | 'completed' | 'cancelled';
+
+export interface UserPayment {
+  id: string;
+  user_id: string;
+  project_id?: string;
+  amount: number;
+  amount_aed?: number;
+  currency: SupportedCurrency;
+  exchange_rate?: number;
+  exchange_rate_date?: string;
+  payment_date: string;
+  payment_type: UserPaymentType;
+  payment_method?: PaymentMethod;
+  reference_number?: string;
+  description?: string;
+  status: UserPaymentStatus;
+  created_by?: string;
+  created_at: string;
+  updated_at?: string;
+}
+
+export interface UserPaymentWithDetails extends UserPayment {
+  user?: User;
+  project?: Project;
+}
+
+export interface UserPaymentSummary {
+  user_id: string;
+  user_name: string;
+  total_paid: number;
+  total_paid_aed: number;
+  payment_count: number;
+  payments: UserPayment[];
+}
+
 export interface ProjectPaymentSummary {
   project_id: string;
   project_name: string;
