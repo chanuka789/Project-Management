@@ -27,7 +27,8 @@ import {
   Trash2,
   Building2,
 } from 'lucide-react';
-import type { User, Project } from '@/types/database';
+import type { User, Project, SupportedCurrency } from '@/types/database';
+import { getCurrencyInfo, formatCurrencyWithCode } from '@/lib/currency';
 
 export default function ProjectsPage() {
   const [user, setUser] = useState<User | null>(null);
@@ -248,11 +249,18 @@ export default function ProjectsPage() {
                           {formatDate(project.start_date)}
                         </span>
                       </div>
-                      <div className="flex items-center gap-2 text-sm">
-                        <DollarSign className="h-4 w-4 text-gray-400" />
-                        <span className="text-gray-600">
-                          {formatCurrency(project.contract_value)}
-                        </span>
+                      <div className="flex flex-col text-sm">
+                        <div className="flex items-center gap-2">
+                          <DollarSign className="h-4 w-4 text-gray-400" />
+                          <span className="text-gray-600 font-medium">
+                            {formatCurrencyWithCode(project.contract_value, (project.currency as SupportedCurrency) || 'AED')}
+                          </span>
+                        </div>
+                        {project.currency && project.currency !== 'AED' && project.contract_value_aed && (
+                          <span className="text-xs text-muted-foreground ml-6">
+                            ≈ {formatCurrencyWithCode(project.contract_value_aed, 'AED')}
+                          </span>
+                        )}
                       </div>
                     </div>
 
