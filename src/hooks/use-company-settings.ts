@@ -71,5 +71,5 @@ export function useCompanySettings() {
     fetchSettings();
   }, [supabase]);
 
-  return { companyName, logoUrl, isLoading };
+  return { companyName, logoUrl, isLoading, companyEmail: '', companyPhone: '', companyAddress: '' };
 }
