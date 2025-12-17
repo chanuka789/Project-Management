@@ -29,7 +29,6 @@ import {
   Building2,
   Mail,
   Phone,
-  Download,
   Trash2,
   CreditCard,
   Banknote,
@@ -40,11 +39,12 @@ import {
   BarChart3,
   X,
   Printer,
+  Edit,
 } from 'lucide-react';
 import type { User, Project, PaymentStatus, PaymentMethod } from '@/types/database';
 
-// Local payment type for localStorage storage
-interface LocalPayment {
+// Payment type for Supabase storage
+interface Payment {
   id: string;
   project_id: string;
   amount: number;
@@ -55,11 +55,13 @@ interface LocalPayment {
   reference_number?: string;
   invoice_number: string;
   description?: string;
+  created_by?: string;
   created_at: string;
+  updated_at?: string;
 }
 
 interface ProjectWithPayments extends Project {
-  payments: LocalPayment[];
+  payments: Payment[];
   total_paid: number;
   total_pending: number;
   balance_due: number;
@@ -72,7 +74,7 @@ interface ClientContact {
 }
 
 // Generate unique invoice number
-const generateInvoiceNumber = (existingPayments: LocalPayment[]): string => {
+const generateInvoiceNumber = (existingPayments: Payment[]): string => {
   const existingNumbers = existingPayments
     .map(p => {
       const match = p.invoice_number?.match(/INV-(\d+)/);
@@ -88,20 +90,22 @@ const generateInvoiceNumber = (existingPayments: LocalPayment[]): string => {
 export default function PaymentsPage() {
   const [user, setUser] = useState<User | null>(null);
   const [projects, setProjects] = useState<ProjectWithPayments[]>([]);
-  const [payments, setPayments] = useState<LocalPayment[]>([]);
+  const [payments, setPayments] = useState<Payment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingPayment, setEditingPayment] = useState<Payment | null>(null);
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
-  const [paymentToDelete, setPaymentToDelete] = useState<LocalPayment | null>(null);
+  const [paymentToDelete, setPaymentToDelete] = useState<Payment | null>(null);
   const [clientContacts, setClientContacts] = useState<Record<string, ClientContact>>({});
   const [showClientModal, setShowClientModal] = useState(false);
   const [editingClientId, setEditingClientId] = useState<string | null>(null);
   const [clientForm, setClientForm] = useState<ClientContact>({ emails: [''], phones: [''] });
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
-  const [selectedPayment, setSelectedPayment] = useState<LocalPayment | null>(null);
+  const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null);
   const [selectedProjectForInvoice, setSelectedProjectForInvoice] = useState<ProjectWithPayments | null>(null);
   const invoiceRef = useRef<HTMLDivElement>(null);
 
@@ -142,9 +146,24 @@ export default function PaymentsPage() {
         .select('*')
         .order('created_at', { ascending: false });
 
-      // Load payments from localStorage
-      const savedPayments = localStorage.getItem('project_payments');
-      const allPayments: LocalPayment[] = savedPayments ? JSON.parse(savedPayments) : [];
+      // Try to fetch payments from Supabase first
+      let allPayments: Payment[] = [];
+      const { data: paymentsData, error: paymentsError } = await supabase
+        .from('payments')
+        .select('*')
+        .order('payment_date', { ascending: false });
+
+      if (paymentsError) {
+        // Table doesn't exist or other error - use localStorage as fallback
+        console.log('Using localStorage for payments (Supabase table not available)');
+        const savedPayments = localStorage.getItem('project_payments');
+        allPayments = savedPayments ? JSON.parse(savedPayments) : [];
+      } else {
+        allPayments = paymentsData || [];
+        // Sync to localStorage for offline access
+        localStorage.setItem('project_payments', JSON.stringify(allPayments));
+      }
+
       setPayments(allPayments);
 
       // Calculate payment summaries for each project
@@ -182,6 +201,99 @@ export default function PaymentsPage() {
       console.error('Error fetching data:', error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Save payment to Supabase or localStorage
+  const savePayment = async (payment: Omit<Payment, 'id' | 'created_at'> & { id?: string; created_at?: string }): Promise<boolean> => {
+    try {
+      // Try Supabase first
+      if (payment.id) {
+        // Update existing payment
+        const { error } = await supabase
+          .from('payments')
+          .update({
+            project_id: payment.project_id,
+            amount: payment.amount,
+            payment_date: payment.payment_date,
+            due_date: payment.due_date || null,
+            status: payment.status,
+            payment_method: payment.payment_method || null,
+            reference_number: payment.reference_number || null,
+            invoice_number: payment.invoice_number,
+            description: payment.description || null,
+          })
+          .eq('id', payment.id);
+
+        if (error) throw error;
+      } else {
+        // Create new payment
+        const { data: { user: authUser } } = await supabase.auth.getUser();
+        const { error } = await supabase
+          .from('payments')
+          .insert({
+            project_id: payment.project_id,
+            amount: payment.amount,
+            payment_date: payment.payment_date,
+            due_date: payment.due_date || null,
+            status: payment.status,
+            payment_method: payment.payment_method || null,
+            reference_number: payment.reference_number || null,
+            invoice_number: payment.invoice_number,
+            description: payment.description || null,
+            created_by: authUser?.id || null,
+          });
+
+        if (error) throw error;
+      }
+      return true;
+    } catch (supabaseError) {
+      console.log('Supabase save failed, using localStorage:', supabaseError);
+
+      // Fallback to localStorage
+      const savedPayments = localStorage.getItem('project_payments');
+      let allPayments: Payment[] = savedPayments ? JSON.parse(savedPayments) : [];
+
+      if (payment.id) {
+        // Update existing
+        allPayments = allPayments.map(p =>
+          p.id === payment.id
+            ? { ...p, ...payment, updated_at: new Date().toISOString() }
+            : p
+        );
+      } else {
+        // Create new
+        const newPayment: Payment = {
+          ...payment,
+          id: crypto.randomUUID(),
+          created_at: new Date().toISOString(),
+        } as Payment;
+        allPayments.push(newPayment);
+      }
+
+      localStorage.setItem('project_payments', JSON.stringify(allPayments));
+      return true;
+    }
+  };
+
+  // Delete payment from Supabase or localStorage
+  const deletePayment = async (paymentId: string): Promise<boolean> => {
+    try {
+      const { error } = await supabase
+        .from('payments')
+        .delete()
+        .eq('id', paymentId);
+
+      if (error) throw error;
+      return true;
+    } catch (supabaseError) {
+      console.log('Supabase delete failed, using localStorage:', supabaseError);
+
+      const savedPayments = localStorage.getItem('project_payments');
+      let allPayments: Payment[] = savedPayments ? JSON.parse(savedPayments) : [];
+      allPayments = allPayments.filter(p => p.id !== paymentId);
+      localStorage.setItem('project_payments', JSON.stringify(allPayments));
+      return true;
     }
   };
 
@@ -256,13 +368,26 @@ export default function PaymentsPage() {
     setExpandedProjects(newExpanded);
   };
 
+  const resetPaymentForm = () => {
+    setPaymentForm({
+      project_id: '',
+      amount: '',
+      payment_date: new Date().toISOString().split('T')[0],
+      due_date: '',
+      status: 'pending',
+      payment_method: 'bank_transfer',
+      reference_number: '',
+      invoice_number: '',
+      description: '',
+    });
+  };
+
   const handleAddPayment = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       const invoiceNumber = paymentForm.invoice_number || generateInvoiceNumber(payments);
 
-      const newPayment: LocalPayment = {
-        id: crypto.randomUUID(),
+      await savePayment({
         project_id: paymentForm.project_id,
         amount: parseFloat(paymentForm.amount),
         payment_date: paymentForm.payment_date,
@@ -272,24 +397,10 @@ export default function PaymentsPage() {
         reference_number: paymentForm.reference_number || undefined,
         invoice_number: invoiceNumber,
         description: paymentForm.description || undefined,
-        created_at: new Date().toISOString(),
-      };
-
-      const updatedPayments = [...payments, newPayment];
-      localStorage.setItem('project_payments', JSON.stringify(updatedPayments));
+      });
 
       setShowAddModal(false);
-      setPaymentForm({
-        project_id: '',
-        amount: '',
-        payment_date: new Date().toISOString().split('T')[0],
-        due_date: '',
-        status: 'pending',
-        payment_method: 'bank_transfer',
-        reference_number: '',
-        invoice_number: '',
-        description: '',
-      });
+      resetPaymentForm();
       fetchData();
     } catch (error) {
       console.error('Error adding payment:', error);
@@ -297,7 +408,52 @@ export default function PaymentsPage() {
     }
   };
 
-  const handleDeleteClick = (payment: LocalPayment) => {
+  const handleEditClick = (payment: Payment) => {
+    setEditingPayment(payment);
+    setPaymentForm({
+      project_id: payment.project_id,
+      amount: payment.amount.toString(),
+      payment_date: payment.payment_date,
+      due_date: payment.due_date || '',
+      status: payment.status,
+      payment_method: payment.payment_method || 'bank_transfer',
+      reference_number: payment.reference_number || '',
+      invoice_number: payment.invoice_number,
+      description: payment.description || '',
+    });
+    setShowEditModal(true);
+  };
+
+  const handleUpdatePayment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingPayment) return;
+
+    try {
+      await savePayment({
+        id: editingPayment.id,
+        project_id: paymentForm.project_id,
+        amount: parseFloat(paymentForm.amount),
+        payment_date: paymentForm.payment_date,
+        due_date: paymentForm.due_date || undefined,
+        status: paymentForm.status,
+        payment_method: paymentForm.payment_method,
+        reference_number: paymentForm.reference_number || undefined,
+        invoice_number: paymentForm.invoice_number,
+        description: paymentForm.description || undefined,
+        created_at: editingPayment.created_at,
+      });
+
+      setShowEditModal(false);
+      setEditingPayment(null);
+      resetPaymentForm();
+      fetchData();
+    } catch (error) {
+      console.error('Error updating payment:', error);
+      alert('Failed to update payment');
+    }
+  };
+
+  const handleDeleteClick = (payment: Payment) => {
     setPaymentToDelete(payment);
     setDeleteModalOpen(true);
   };
@@ -305,8 +461,7 @@ export default function PaymentsPage() {
   const handleDeleteConfirm = async () => {
     if (!paymentToDelete) return;
     try {
-      const updatedPayments = payments.filter(p => p.id !== paymentToDelete.id);
-      localStorage.setItem('project_payments', JSON.stringify(updatedPayments));
+      await deletePayment(paymentToDelete.id);
       fetchData();
     } catch (error) {
       console.error('Error deleting payment:', error);
@@ -374,7 +529,7 @@ export default function PaymentsPage() {
     }
   };
 
-  const openInvoicePreview = (payment: LocalPayment, project: ProjectWithPayments) => {
+  const openInvoicePreview = (payment: Payment, project: ProjectWithPayments) => {
     setSelectedPayment(payment);
     setSelectedProjectForInvoice(project);
     setShowInvoiceModal(true);
@@ -386,7 +541,6 @@ export default function PaymentsPage() {
 
     const project = selectedProjectForInvoice;
     const payment = selectedPayment;
-    const contacts = clientContacts[project.id];
     const paymentPercentage = project.contract_value > 0
       ? ((payment.amount / project.contract_value) * 100).toFixed(0)
       : '100';
@@ -631,6 +785,121 @@ export default function PaymentsPage() {
     printWindow.document.close();
   };
 
+  // Payment Form Component (reusable for add and edit)
+  const PaymentFormContent = ({ isEdit = false }: { isEdit?: boolean }) => (
+    <form onSubmit={isEdit ? handleUpdatePayment : handleAddPayment} className="space-y-4">
+      <Select
+        label="Project"
+        value={paymentForm.project_id}
+        onChange={(e) => setPaymentForm({ ...paymentForm, project_id: e.target.value })}
+        options={[
+          { value: '', label: 'Select a project' },
+          ...projects.map(p => ({ value: p.id, label: `${p.name}${p.client_name ? ` - ${p.client_name}` : ''}` })),
+        ]}
+        required
+        disabled={isEdit}
+      />
+
+      <div className="grid grid-cols-2 gap-4">
+        <Input
+          label="Amount (AED)"
+          type="number"
+          value={paymentForm.amount}
+          onChange={(e) => setPaymentForm({ ...paymentForm, amount: e.target.value })}
+          min="0"
+          step="0.01"
+          required
+        />
+        <Select
+          label="Status"
+          value={paymentForm.status}
+          onChange={(e) => setPaymentForm({ ...paymentForm, status: e.target.value as PaymentStatus })}
+          options={[
+            { value: 'pending', label: 'Pending' },
+            { value: 'paid', label: 'Paid' },
+            { value: 'partial', label: 'Partial' },
+            { value: 'overdue', label: 'Overdue' },
+          ]}
+        />
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <Input
+          label="Payment Date"
+          type="date"
+          value={paymentForm.payment_date}
+          onChange={(e) => setPaymentForm({ ...paymentForm, payment_date: e.target.value })}
+          required
+        />
+        <Input
+          label="Due Date (optional)"
+          type="date"
+          value={paymentForm.due_date}
+          onChange={(e) => setPaymentForm({ ...paymentForm, due_date: e.target.value })}
+        />
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <Select
+          label="Payment Method"
+          value={paymentForm.payment_method}
+          onChange={(e) => setPaymentForm({ ...paymentForm, payment_method: e.target.value as PaymentMethod })}
+          options={[
+            { value: 'bank_transfer', label: 'Bank Transfer' },
+            { value: 'cash', label: 'Cash' },
+            { value: 'cheque', label: 'Cheque' },
+            { value: 'credit_card', label: 'Credit Card' },
+            { value: 'other', label: 'Other' },
+          ]}
+        />
+        <Input
+          label={isEdit ? "Invoice Number" : "Invoice Number (auto-generated if empty)"}
+          value={paymentForm.invoice_number}
+          onChange={(e) => setPaymentForm({ ...paymentForm, invoice_number: e.target.value })}
+          placeholder={isEdit ? '' : `Next: ${generateInvoiceNumber(payments)}`}
+          disabled={isEdit}
+        />
+      </div>
+
+      <Input
+        label="Reference Number"
+        value={paymentForm.reference_number}
+        onChange={(e) => setPaymentForm({ ...paymentForm, reference_number: e.target.value })}
+        placeholder="Transaction reference"
+      />
+
+      <Textarea
+        label="Description"
+        value={paymentForm.description}
+        onChange={(e) => setPaymentForm({ ...paymentForm, description: e.target.value })}
+        placeholder="Payment details or notes..."
+        rows={2}
+      />
+
+      <div className="flex justify-end gap-3 pt-4">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => {
+            if (isEdit) {
+              setShowEditModal(false);
+              setEditingPayment(null);
+            } else {
+              setShowAddModal(false);
+            }
+            resetPaymentForm();
+          }}
+        >
+          Cancel
+        </Button>
+        <Button type="submit">
+          {isEdit ? <Edit className="h-4 w-4 mr-2" /> : <Receipt className="h-4 w-4 mr-2" />}
+          {isEdit ? 'Update Payment' : 'Record Payment'}
+        </Button>
+      </div>
+    </form>
+  );
+
   if (isLoading) {
     return (
       <DashboardLayout user={user} title="Payments" logoUrl={logoUrl} companyName={companyName}>
@@ -698,12 +967,9 @@ export default function PaymentsPage() {
             </CardHeader>
             <CardContent>
               <div className="flex items-center justify-center gap-8">
-                {/* Visual Pie Chart */}
                 <div className="relative w-40 h-40">
                   <svg viewBox="0 0 36 36" className="w-full h-full transform -rotate-90">
-                    {/* Background circle */}
                     <circle cx="18" cy="18" r="15.915" fill="none" stroke="currentColor" strokeWidth="3" className="text-muted" />
-                    {/* Paid segment */}
                     {paymentStatusData.paid > 0 && (
                       <circle
                         cx="18" cy="18" r="15.915" fill="none"
@@ -712,7 +978,6 @@ export default function PaymentsPage() {
                         strokeLinecap="round"
                       />
                     )}
-                    {/* Pending segment */}
                     {paymentStatusData.pending > 0 && (
                       <circle
                         cx="18" cy="18" r="15.915" fill="none"
@@ -722,7 +987,6 @@ export default function PaymentsPage() {
                         strokeLinecap="round"
                       />
                     )}
-                    {/* Partial segment */}
                     {paymentStatusData.partial > 0 && (
                       <circle
                         cx="18" cy="18" r="15.915" fill="none"
@@ -732,7 +996,6 @@ export default function PaymentsPage() {
                         strokeLinecap="round"
                       />
                     )}
-                    {/* Overdue segment */}
                     {paymentStatusData.overdue > 0 && (
                       <circle
                         cx="18" cy="18" r="15.915" fill="none"
@@ -750,7 +1013,6 @@ export default function PaymentsPage() {
                     </div>
                   </div>
                 </div>
-                {/* Legend */}
                 <div className="space-y-3">
                   <div className="flex items-center gap-2">
                     <div className="w-3 h-3 rounded-full bg-green-500" />
@@ -786,12 +1048,10 @@ export default function PaymentsPage() {
                 {monthlyData.map((data, index) => (
                   <div key={index} className="flex-1 flex flex-col items-center gap-1">
                     <div className="w-full flex flex-col gap-0.5" style={{ height: '160px' }}>
-                      {/* Pending bar */}
                       <div
                         className="w-full bg-yellow-500/30 rounded-t transition-all duration-300"
                         style={{ height: `${(data.pending / maxMonthlyValue) * 100}%` }}
                       />
-                      {/* Received bar */}
                       <div
                         className="w-full bg-green-500 rounded-t transition-all duration-300"
                         style={{ height: `${(data.received / maxMonthlyValue) * 100}%` }}
@@ -861,13 +1121,11 @@ export default function PaymentsPage() {
 
               return (
                 <Card key={project.id} className="overflow-hidden">
-                  {/* Project Header */}
                   <div
                     className="p-4 sm:p-6 cursor-pointer hover:bg-muted/50 transition-colors"
                     onClick={() => toggleProjectExpand(project.id)}
                   >
                     <div className="flex flex-col lg:flex-row lg:items-center gap-4">
-                      {/* Project Info */}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start gap-3">
                           <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
@@ -905,7 +1163,6 @@ export default function PaymentsPage() {
                         </div>
                       </div>
 
-                      {/* Payment Progress */}
                       <div className="flex-1 max-w-md">
                         <div className="flex justify-between text-sm mb-2">
                           <span className="text-muted-foreground">Payment Progress</span>
@@ -923,7 +1180,6 @@ export default function PaymentsPage() {
                         </div>
                       </div>
 
-                      {/* Contract Value & Actions */}
                       <div className="flex items-center gap-4">
                         <div className="text-right">
                           <p className="text-sm text-muted-foreground">Contract Value</p>
@@ -951,10 +1207,8 @@ export default function PaymentsPage() {
                     </div>
                   </div>
 
-                  {/* Expanded Payment Details */}
                   {isExpanded && (
                     <div className="border-t border-border">
-                      {/* Client Contact Info */}
                       {contacts && (contacts.emails.some(e => e) || contacts.phones.some(p => p)) && (
                         <div className="px-4 sm:px-6 py-3 bg-muted/30 border-b border-border">
                           <div className="flex flex-wrap gap-4">
@@ -982,7 +1236,6 @@ export default function PaymentsPage() {
                         </div>
                       )}
 
-                      {/* Payment Table */}
                       <div className="overflow-x-auto">
                         <Table>
                           <TableHeader>
@@ -1035,6 +1288,15 @@ export default function PaymentsPage() {
                                         variant="ghost"
                                         size="icon"
                                         className="h-8 w-8 text-primary"
+                                        onClick={() => handleEditClick(payment)}
+                                        title="Edit Payment"
+                                      >
+                                        <Edit className="h-4 w-4" />
+                                      </Button>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8 text-primary"
                                         onClick={() => openInvoicePreview(payment, project)}
                                         title="Generate Invoice"
                                       >
@@ -1057,7 +1319,6 @@ export default function PaymentsPage() {
                         </Table>
                       </div>
 
-                      {/* Add Payment Button */}
                       <div className="px-4 sm:px-6 py-3 border-t border-border">
                         <Button
                           variant="outline"
@@ -1084,108 +1345,30 @@ export default function PaymentsPage() {
       {/* Add Payment Modal */}
       <Modal
         isOpen={showAddModal}
-        onClose={() => setShowAddModal(false)}
+        onClose={() => {
+          setShowAddModal(false);
+          resetPaymentForm();
+        }}
         title="Record Payment"
         description="Add a new payment record for a project"
         size="lg"
       >
-        <form onSubmit={handleAddPayment} className="space-y-4">
-          <Select
-            label="Project"
-            value={paymentForm.project_id}
-            onChange={(e) => setPaymentForm({ ...paymentForm, project_id: e.target.value })}
-            options={[
-              { value: '', label: 'Select a project' },
-              ...projects.map(p => ({ value: p.id, label: `${p.name}${p.client_name ? ` - ${p.client_name}` : ''}` })),
-            ]}
-            required
-          />
+        <PaymentFormContent isEdit={false} />
+      </Modal>
 
-          <div className="grid grid-cols-2 gap-4">
-            <Input
-              label="Amount (AED)"
-              type="number"
-              value={paymentForm.amount}
-              onChange={(e) => setPaymentForm({ ...paymentForm, amount: e.target.value })}
-              min="0"
-              step="0.01"
-              required
-            />
-            <Select
-              label="Status"
-              value={paymentForm.status}
-              onChange={(e) => setPaymentForm({ ...paymentForm, status: e.target.value as PaymentStatus })}
-              options={[
-                { value: 'pending', label: 'Pending' },
-                { value: 'paid', label: 'Paid' },
-                { value: 'partial', label: 'Partial' },
-                { value: 'overdue', label: 'Overdue' },
-              ]}
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <Input
-              label="Payment Date"
-              type="date"
-              value={paymentForm.payment_date}
-              onChange={(e) => setPaymentForm({ ...paymentForm, payment_date: e.target.value })}
-              required
-            />
-            <Input
-              label="Due Date (optional)"
-              type="date"
-              value={paymentForm.due_date}
-              onChange={(e) => setPaymentForm({ ...paymentForm, due_date: e.target.value })}
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <Select
-              label="Payment Method"
-              value={paymentForm.payment_method}
-              onChange={(e) => setPaymentForm({ ...paymentForm, payment_method: e.target.value as PaymentMethod })}
-              options={[
-                { value: 'bank_transfer', label: 'Bank Transfer' },
-                { value: 'cash', label: 'Cash' },
-                { value: 'cheque', label: 'Cheque' },
-                { value: 'credit_card', label: 'Credit Card' },
-                { value: 'other', label: 'Other' },
-              ]}
-            />
-            <Input
-              label="Invoice Number (auto-generated if empty)"
-              value={paymentForm.invoice_number}
-              onChange={(e) => setPaymentForm({ ...paymentForm, invoice_number: e.target.value })}
-              placeholder={`Next: ${generateInvoiceNumber(payments)}`}
-            />
-          </div>
-
-          <Input
-            label="Reference Number"
-            value={paymentForm.reference_number}
-            onChange={(e) => setPaymentForm({ ...paymentForm, reference_number: e.target.value })}
-            placeholder="Transaction reference"
-          />
-
-          <Textarea
-            label="Description"
-            value={paymentForm.description}
-            onChange={(e) => setPaymentForm({ ...paymentForm, description: e.target.value })}
-            placeholder="Payment details or notes..."
-            rows={2}
-          />
-
-          <div className="flex justify-end gap-3 pt-4">
-            <Button type="button" variant="outline" onClick={() => setShowAddModal(false)}>
-              Cancel
-            </Button>
-            <Button type="submit">
-              <Receipt className="h-4 w-4 mr-2" />
-              Record Payment
-            </Button>
-          </div>
-        </form>
+      {/* Edit Payment Modal */}
+      <Modal
+        isOpen={showEditModal}
+        onClose={() => {
+          setShowEditModal(false);
+          setEditingPayment(null);
+          resetPaymentForm();
+        }}
+        title="Edit Payment"
+        description="Update payment details"
+        size="lg"
+      >
+        <PaymentFormContent isEdit={true} />
       </Modal>
 
       {/* Invoice Preview Modal */}
@@ -1258,7 +1441,6 @@ export default function PaymentsPage() {
         size="md"
       >
         <div className="space-y-6">
-          {/* Emails */}
           <div>
             <label className="block text-sm font-medium text-foreground mb-2">
               Email Addresses
@@ -1299,7 +1481,6 @@ export default function PaymentsPage() {
             </div>
           </div>
 
-          {/* Phone Numbers */}
           <div>
             <label className="block text-sm font-medium text-foreground mb-2">
               Phone Numbers
