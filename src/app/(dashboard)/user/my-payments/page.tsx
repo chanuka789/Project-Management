@@ -358,11 +358,6 @@ export default function MyPaymentsPage() {
                       <p className="font-semibold text-foreground">
                         {formatCurrencyWithCode(convertToUserCurrency(payment.amount_aed || payment.amount), userCurrency)}
                       </p>
-                      {userCurrency !== 'AED' && (
-                        <p className="text-xs text-muted-foreground">
-                          ≈ {formatCurrencyWithCode(payment.amount_aed || payment.amount, 'AED')}
-                        </p>
-                      )}
                     </div>
                   </div>
                 ))}
@@ -417,17 +412,8 @@ export default function MyPaymentsPage() {
                               </span>
                             </div>
                           </TableCell>
-                          <TableCell className="text-right">
-                            <div>
-                              <span className="font-semibold">
-                                {formatCurrencyWithCode(amountInUserCurrency, userCurrency)}
-                              </span>
-                              {userCurrency !== 'AED' && (
-                                <span className="block text-xs text-muted-foreground">
-                                  ≈ {formatCurrencyWithCode(payment.amount_aed || payment.amount, 'AED')}
-                                </span>
-                              )}
-                            </div>
+                          <TableCell className="text-right font-semibold">
+                            {formatCurrencyWithCode(amountInUserCurrency, userCurrency)}
                           </TableCell>
                           <TableCell>{getStatusBadge(payment.status)}</TableCell>
                         </TableRow>
@@ -440,22 +426,6 @@ export default function MyPaymentsPage() {
           </CardContent>
         </Card>
 
-        {/* Exchange Rate Info */}
-        {userCurrency !== 'AED' && (
-          <Card className="bg-muted/30">
-            <CardContent className="py-4">
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <DollarSign className="h-4 w-4" />
-                <span>
-                  All amounts shown are converted using the current exchange rate:
-                  <span className="font-medium text-foreground ml-1">
-                    1 {userCurrency} = {DEFAULT_EXCHANGE_RATES[userCurrency].toFixed(4)} AED
-                  </span>
-                </span>
-              </div>
-            </CardContent>
-          </Card>
-        )}
       </div>
     </DashboardLayout>
   );

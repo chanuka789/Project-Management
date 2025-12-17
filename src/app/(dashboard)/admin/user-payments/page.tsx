@@ -477,17 +477,37 @@ export default function UserPaymentsPage() {
     }
   };
 
-  // Payment Form Component
-  const PaymentFormContent = ({ isEdit = false }: { isEdit?: boolean }) => (
+  // Memoized user options for forms
+  const userOptions = useMemo(() => [
+    { value: '', label: 'Select a team member' },
+    ...users.map(u => ({ value: u.id, label: `${u.full_name} (${u.email})` })),
+  ], [users]);
+
+  // Memoized project options for forms
+  const projectOptions = useMemo(() => [
+    { value: '', label: 'No specific project' },
+    ...projects.map(p => ({ value: p.id, label: p.name })),
+  ], [projects]);
+
+  // Memoized currency options
+  const currencyOptions = useMemo(() => SUPPORTED_CURRENCIES.map(c => ({
+    value: c.code,
+    label: `${c.flag} ${c.code}`
+  })), []);
+
+  // Form field change handlers (memoized to prevent rerenders)
+  const handleFormChange = useCallback((field: string, value: string) => {
+    setPaymentForm(prev => ({ ...prev, [field]: value }));
+  }, []);
+
+  // Payment Form Component (memoized)
+  const PaymentFormContent = useCallback(({ isEdit = false }: { isEdit?: boolean }) => (
     <form onSubmit={isEdit ? handleUpdatePayment : handleAddPayment} className="space-y-4">
       <Select
         label="Team Member"
         value={paymentForm.user_id}
-        onChange={(e) => setPaymentForm({ ...paymentForm, user_id: e.target.value })}
-        options={[
-          { value: '', label: 'Select a team member' },
-          ...users.map(u => ({ value: u.id, label: `${u.full_name} (${u.email})` })),
-        ]}
+        onChange={(e) => handleFormChange('user_id', e.target.value)}
+        options={userOptions}
         required
         disabled={isEdit}
       />
@@ -495,28 +515,22 @@ export default function UserPaymentsPage() {
       <Select
         label="Project (Optional)"
         value={paymentForm.project_id}
-        onChange={(e) => setPaymentForm({ ...paymentForm, project_id: e.target.value })}
-        options={[
-          { value: '', label: 'No specific project' },
-          ...projects.map(p => ({ value: p.id, label: p.name })),
-        ]}
+        onChange={(e) => handleFormChange('project_id', e.target.value)}
+        options={projectOptions}
       />
 
       <div className="grid grid-cols-3 gap-4">
         <Select
           label="Currency"
           value={paymentForm.currency}
-          onChange={(e) => setPaymentForm({ ...paymentForm, currency: e.target.value as SupportedCurrency })}
-          options={SUPPORTED_CURRENCIES.map(c => ({
-            value: c.code,
-            label: `${c.flag} ${c.code}`
-          }))}
+          onChange={(e) => handleFormChange('currency', e.target.value)}
+          options={currencyOptions}
         />
         <Input
           label={`Amount (${paymentForm.currency})`}
           type="number"
           value={paymentForm.amount}
-          onChange={(e) => setPaymentForm({ ...paymentForm, amount: e.target.value })}
+          onChange={(e) => handleFormChange('amount', e.target.value)}
           min="0"
           step="0.01"
           required
@@ -543,7 +557,7 @@ export default function UserPaymentsPage() {
         <Select
           label="Payment Type"
           value={paymentForm.payment_type}
-          onChange={(e) => setPaymentForm({ ...paymentForm, payment_type: e.target.value as UserPaymentType })}
+          onChange={(e) => handleFormChange('payment_type', e.target.value)}
           options={[
             { value: 'salary', label: 'Salary' },
             { value: 'bonus', label: 'Bonus' },
@@ -556,7 +570,7 @@ export default function UserPaymentsPage() {
         <Select
           label="Status"
           value={paymentForm.status}
-          onChange={(e) => setPaymentForm({ ...paymentForm, status: e.target.value as UserPaymentStatus })}
+          onChange={(e) => handleFormChange('status', e.target.value)}
           options={[
             { value: 'completed', label: 'Completed' },
             { value: 'pending', label: 'Pending' },
@@ -570,13 +584,13 @@ export default function UserPaymentsPage() {
           label="Payment Date"
           type="date"
           value={paymentForm.payment_date}
-          onChange={(e) => setPaymentForm({ ...paymentForm, payment_date: e.target.value })}
+          onChange={(e) => handleFormChange('payment_date', e.target.value)}
           required
         />
         <Select
           label="Payment Method"
           value={paymentForm.payment_method}
-          onChange={(e) => setPaymentForm({ ...paymentForm, payment_method: e.target.value as PaymentMethod })}
+          onChange={(e) => handleFormChange('payment_method', e.target.value)}
           options={[
             { value: 'bank_transfer', label: 'Bank Transfer' },
             { value: 'cash', label: 'Cash' },
@@ -590,14 +604,14 @@ export default function UserPaymentsPage() {
       <Input
         label="Reference Number"
         value={paymentForm.reference_number}
-        onChange={(e) => setPaymentForm({ ...paymentForm, reference_number: e.target.value })}
+        onChange={(e) => handleFormChange('reference_number', e.target.value)}
         placeholder="Transaction reference"
       />
 
       <Textarea
         label="Description"
         value={paymentForm.description}
-        onChange={(e) => setPaymentForm({ ...paymentForm, description: e.target.value })}
+        onChange={(e) => handleFormChange('description', e.target.value)}
         placeholder="Payment details or notes..."
         rows={2}
       />
@@ -624,7 +638,7 @@ export default function UserPaymentsPage() {
         </Button>
       </div>
     </form>
-  );
+  ), [paymentForm, userOptions, projectOptions, currencyOptions, handleFormChange, handleAddPayment, handleUpdatePayment, resetPaymentForm, setShowAddModal, setShowEditModal, setEditingPayment]);
 
   if (isLoading) {
     return (

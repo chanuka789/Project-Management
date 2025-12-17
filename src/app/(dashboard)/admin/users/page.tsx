@@ -439,10 +439,9 @@ export default function UsersPage() {
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <div className="flex items-center gap-1 font-medium text-[#0a5082]">
-                          <DollarSign className="h-4 w-4" />
-                          {formatCurrency(user.hourly_rate)}/hr
-                        </div>
+                        <span className="font-medium text-[#0a5082]">
+                          {formatCurrencyWithCode(user.hourly_rate, user.hourly_rate_currency || 'AED')}/hr
+                        </span>
                       </TableCell>
                       <TableCell>
                         <span className="text-sm text-gray-500">

@@ -269,11 +269,6 @@ export default function UserDashboard() {
                   <p className="text-2xl font-bold text-primary">
                     {formatCurrencyWithCode(totalReceivedInUserCurrency, userCurrency)}
                   </p>
-                  {userCurrency !== 'AED' && (
-                    <p className="text-xs text-muted-foreground mt-1">
-                      ≈ {formatCurrencyWithCode(data?.totalReceived || 0, 'AED')}
-                    </p>
-                  )}
                 </div>
                 <div className="bg-card rounded-lg p-4 border border-border">
                   <div className="flex items-center gap-2 text-muted-foreground mb-1">
@@ -283,15 +278,10 @@ export default function UserDashboard() {
                   <p className="text-2xl font-bold text-warning">
                     {formatCurrencyWithCode(pendingPaymentsInUserCurrency, userCurrency)}
                   </p>
-                  {userCurrency !== 'AED' && data?.pendingPayments && data.pendingPayments > 0 && (
-                    <p className="text-xs text-muted-foreground mt-1">
-                      ≈ {formatCurrencyWithCode(data?.pendingPayments || 0, 'AED')}
-                    </p>
-                  )}
                 </div>
                 <div className="bg-card rounded-lg p-4 border border-border">
                   <div className="flex items-center gap-2 text-muted-foreground mb-1">
-                    <DollarSign className="h-4 w-4" />
+                    <Wallet className="h-4 w-4" />
                     <span className="text-sm">Total Payments</span>
                   </div>
                   <p className="text-2xl font-bold text-foreground">
@@ -456,9 +446,6 @@ export default function UserDashboard() {
                 <p className="text-3xl font-bold text-[#0a5082]">{data?.totalHours.toFixed(1) || 0}</p>
                 <p className="text-sm text-gray-500 mt-2">
                   Cost contribution: {formatCurrencyWithCode(totalCostInUserCurrency, userCurrency)}
-                  {userCurrency !== 'AED' && (
-                    <span className="text-xs ml-1">(≈ {formatCurrencyWithCode(totalCostAed, 'AED')})</span>
-                  )}
                 </p>
               </div>
             </div>
