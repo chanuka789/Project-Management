@@ -32,7 +32,8 @@ import {
   Copy,
   Check,
 } from 'lucide-react';
-import type { User } from '@/types/database';
+import type { User, SupportedCurrency } from '@/types/database';
+import { SUPPORTED_CURRENCIES, formatCurrencyWithCode } from '@/lib/currency';
 
 export default function UsersPage() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -52,6 +53,8 @@ export default function UsersPage() {
     birthday: '',
     role: 'user',
     hourly_rate: '',
+    hourly_rate_currency: 'AED' as SupportedCurrency,
+    default_currency: 'AED' as SupportedCurrency,
   });
   const [newUserForm, setNewUserForm] = useState({
     full_name: '',
@@ -60,6 +63,8 @@ export default function UsersPage() {
     location: '',
     role: 'user',
     hourly_rate: '',
+    hourly_rate_currency: 'AED' as SupportedCurrency,
+    default_currency: 'AED' as SupportedCurrency,
     password: '',
   });
   const [isCreating, setIsCreating] = useState(false);
@@ -137,6 +142,8 @@ export default function UsersPage() {
       birthday: user.birthday || '',
       role: user.role,
       hourly_rate: user.hourly_rate.toString(),
+      hourly_rate_currency: user.hourly_rate_currency || 'AED',
+      default_currency: user.default_currency || 'AED',
     });
     setShowEditModal(true);
   };
@@ -155,6 +162,8 @@ export default function UsersPage() {
           birthday: formData.birthday || null,
           role: formData.role,
           hourly_rate: parseFloat(formData.hourly_rate) || 0,
+          hourly_rate_currency: formData.hourly_rate_currency,
+          default_currency: formData.default_currency,
         })
         .eq('id', selectedUser.id);
 
@@ -212,6 +221,8 @@ export default function UsersPage() {
       location: '',
       role: 'user',
       hourly_rate: '',
+      hourly_rate_currency: 'AED',
+      default_currency: 'AED',
       password,
     });
     setCreatedUserCreds(null);
@@ -248,6 +259,8 @@ export default function UsersPage() {
             location: newUserForm.location || null,
             role: newUserForm.role,
             hourly_rate: parseFloat(newUserForm.hourly_rate) || 0,
+            hourly_rate_currency: newUserForm.hourly_rate_currency,
+            default_currency: newUserForm.default_currency,
           });
 
         if (profileError) throw profileError;
@@ -295,6 +308,8 @@ export default function UsersPage() {
       location: '',
       role: 'user',
       hourly_rate: '',
+      hourly_rate_currency: 'AED',
+      default_currency: 'AED',
       password: '',
     });
   };
@@ -521,13 +536,34 @@ export default function UsersPage() {
                   { value: 'admin', label: 'Admin' },
                 ]}
               />
+              <Select
+                label="Default Currency"
+                value={formData.default_currency}
+                onChange={(e) => setFormData({ ...formData, default_currency: e.target.value as SupportedCurrency })}
+                options={SUPPORTED_CURRENCIES.map(c => ({
+                  value: c.code,
+                  label: `${c.flag} ${c.code} - ${c.name}`
+                }))}
+              />
+            </div>
+            <div className="grid grid-cols-3 gap-4">
+              <Select
+                label="Rate Currency"
+                value={formData.hourly_rate_currency}
+                onChange={(e) => setFormData({ ...formData, hourly_rate_currency: e.target.value as SupportedCurrency })}
+                options={SUPPORTED_CURRENCIES.map(c => ({
+                  value: c.code,
+                  label: `${c.flag} ${c.code}`
+                }))}
+              />
               <Input
-                label="Hourly Rate (AED)"
+                label={`Hourly Rate (${formData.hourly_rate_currency})`}
                 type="number"
                 value={formData.hourly_rate}
                 onChange={(e) => setFormData({ ...formData, hourly_rate: e.target.value })}
                 min="0"
                 step="0.01"
+                className="col-span-2"
               />
             </div>
             <div className="flex justify-end gap-3 pt-4">
@@ -654,14 +690,35 @@ export default function UsersPage() {
                     { value: 'admin', label: 'Admin' },
                   ]}
                 />
+                <Select
+                  label="Default Currency"
+                  value={newUserForm.default_currency}
+                  onChange={(e) => setNewUserForm({ ...newUserForm, default_currency: e.target.value as SupportedCurrency })}
+                  options={SUPPORTED_CURRENCIES.map(c => ({
+                    value: c.code,
+                    label: `${c.flag} ${c.code} - ${c.name}`
+                  }))}
+                />
+              </div>
+              <div className="grid grid-cols-3 gap-4">
+                <Select
+                  label="Rate Currency"
+                  value={newUserForm.hourly_rate_currency}
+                  onChange={(e) => setNewUserForm({ ...newUserForm, hourly_rate_currency: e.target.value as SupportedCurrency })}
+                  options={SUPPORTED_CURRENCIES.map(c => ({
+                    value: c.code,
+                    label: `${c.flag} ${c.code}`
+                  }))}
+                />
                 <Input
-                  label="Hourly Rate (AED)"
+                  label={`Hourly Rate (${newUserForm.hourly_rate_currency})`}
                   type="number"
                   value={newUserForm.hourly_rate}
                   onChange={(e) => setNewUserForm({ ...newUserForm, hourly_rate: e.target.value })}
                   placeholder="0.00"
                   min="0"
                   step="0.01"
+                  className="col-span-2"
                 />
               </div>
               <div className="p-3 bg-gray-50 rounded-lg">
