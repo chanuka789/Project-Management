@@ -218,9 +218,9 @@ CREATE POLICY "Users can view assigned projects" ON projects
     );
 
 CREATE POLICY "Admins can manage projects" ON projects
-    FOR ALL USING (
-        EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role = 'admin')
-    );
+    FOR ALL
+    USING (EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role = 'admin'))
+    WITH CHECK (EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role = 'admin'));
 
 -- PROJECT_USERS POLICIES
 CREATE POLICY "View project assignments" ON project_users
