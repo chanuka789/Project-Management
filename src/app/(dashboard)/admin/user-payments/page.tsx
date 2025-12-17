@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { DashboardLayout } from '@/components/layout/dashboard-layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -254,26 +254,26 @@ export default function UserPaymentsPage() {
     }
   };
 
-  // Calculate overview metrics
-  const metrics = {
+  // Calculate overview metrics (memoized to prevent recalculation on form inputs)
+  const metrics = useMemo(() => ({
     totalPaid: payments.filter(p => p.status === 'completed').reduce((sum, p) => sum + (p.amount_aed || p.amount), 0),
     totalPending: payments.filter(p => p.status === 'pending').reduce((sum, p) => sum + (p.amount_aed || p.amount), 0),
     totalPayments: payments.length,
     activeUsers: users.filter(u => u.payment_count > 0).length,
-  };
+  }), [payments, users]);
 
-  // Payment type distribution
-  const paymentTypeData = {
+  // Payment type distribution (memoized)
+  const paymentTypeData = useMemo(() => ({
     salary: payments.filter(p => p.payment_type === 'salary').length,
     bonus: payments.filter(p => p.payment_type === 'bonus').length,
     reimbursement: payments.filter(p => p.payment_type === 'reimbursement').length,
     advance: payments.filter(p => p.payment_type === 'advance').length,
     commission: payments.filter(p => p.payment_type === 'commission').length,
     other: payments.filter(p => p.payment_type === 'other').length,
-  };
+  }), [payments]);
 
-  // Monthly payment data for chart
-  const getMonthlyData = () => {
+  // Monthly payment data for chart (memoized)
+  const monthlyData = useMemo(() => {
     const months: Record<string, number> = {};
     const now = new Date();
     for (let i = 5; i >= 0; i--) {
@@ -293,19 +293,18 @@ export default function UserPaymentsPage() {
     });
 
     return Object.entries(months).map(([month, amount]) => ({ month, amount }));
-  };
+  }, [payments]);
 
-  const monthlyData = getMonthlyData();
-  const maxMonthlyValue = Math.max(...monthlyData.map(d => d.amount), 1);
+  const maxMonthlyValue = useMemo(() => Math.max(...monthlyData.map(d => d.amount), 1), [monthlyData]);
 
-  // Filter users
-  const filteredUsers = users.filter(u => {
+  // Filter users (memoized - only recalculate when search/filter/users change)
+  const filteredUsers = useMemo(() => users.filter(u => {
     const matchesSearch = u.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       u.email.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesType = typeFilter === 'all' ||
       u.payments.some(p => p.payment_type === typeFilter);
     return matchesSearch && matchesType;
-  });
+  }), [users, searchTerm, typeFilter]);
 
   const toggleUserExpand = (userId: string) => {
     const newExpanded = new Set(expandedUsers);
