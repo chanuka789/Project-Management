@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useMemo } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { DashboardLayout } from '@/components/layout/dashboard-layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -301,8 +301,8 @@ export default function PaymentsPage() {
     }
   };
 
-  // Calculate overview metrics
-  const metrics = {
+  // Calculate overview metrics (memoized to prevent recalculation on form inputs)
+  const metrics = useMemo(() => ({
     totalContractValue: projects.reduce((sum, p) => sum + p.contract_value, 0),
     totalReceived: projects.reduce((sum, p) => sum + p.total_paid, 0),
     totalPending: projects.reduce((sum, p) => sum + p.total_pending, 0),
@@ -310,18 +310,18 @@ export default function PaymentsPage() {
     overduePayments: payments.filter(p =>
       p.status === 'pending' && p.due_date && new Date(p.due_date) < new Date()
     ).length,
-  };
+  }), [projects, payments]);
 
-  // Payment status distribution
-  const paymentStatusData = {
+  // Payment status distribution (memoized)
+  const paymentStatusData = useMemo(() => ({
     paid: payments.filter(p => p.status === 'paid').length,
     pending: payments.filter(p => p.status === 'pending').length,
     partial: payments.filter(p => p.status === 'partial').length,
     overdue: payments.filter(p => p.status === 'overdue').length,
-  };
+  }), [payments]);
 
-  // Monthly payment data for chart
-  const getMonthlyData = () => {
+  // Monthly payment data for chart (memoized)
+  const monthlyData = useMemo(() => {
     const months: Record<string, { received: number; pending: number }> = {};
     const now = new Date();
     for (let i = 5; i >= 0; i--) {
@@ -346,13 +346,12 @@ export default function PaymentsPage() {
       month,
       ...data,
     }));
-  };
+  }, [payments]);
 
-  const monthlyData = getMonthlyData();
-  const maxMonthlyValue = Math.max(...monthlyData.map(d => d.received + d.pending), 1);
+  const maxMonthlyValue = useMemo(() => Math.max(...monthlyData.map(d => d.received + d.pending), 1), [monthlyData]);
 
-  // Filter projects
-  const filteredProjects = projects.filter(project => {
+  // Filter projects (memoized - only recalculate when search/filter/projects change)
+  const filteredProjects = useMemo(() => projects.filter(project => {
     const matchesSearch = project.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       project.client_name?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'all' ||
@@ -360,7 +359,7 @@ export default function PaymentsPage() {
       (statusFilter === 'partial' && project.payment_percentage > 0 && project.payment_percentage < 100) ||
       (statusFilter === 'unpaid' && project.payment_percentage === 0);
     return matchesSearch && matchesStatus;
-  });
+  }), [projects, searchTerm, statusFilter]);
 
   const toggleProjectExpand = (projectId: string) => {
     const newExpanded = new Set(expandedProjects);
