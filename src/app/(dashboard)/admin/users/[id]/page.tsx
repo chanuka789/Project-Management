@@ -14,6 +14,9 @@ import { TimeChart } from '@/components/charts/time-chart';
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '@/components/ui/table';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { useCompanySettings } from '@/hooks/use-company-settings';
+import { Modal } from '@/components/ui/modal';
+import { UserForm } from '@/components/users/user-form';
+import toast from 'react-hot-toast';
 import {
   ArrowLeft,
   Mail,
@@ -39,66 +42,91 @@ export default function UserDetailPage() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [userDetails, setUserDetails] = useState<UserDetails | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const supabase = createClient();
   const { companyName, logoUrl } = useCompanySettings();
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const { data: { user: authUser } } = await supabase.auth.getUser();
-        if (authUser) {
-          const { data: profile } = await supabase
-            .from('users')
-            .select('*')
-            .eq('id', authUser.id)
-            .single();
-          setCurrentUser(profile);
-        }
-
-        // Fetch user details
-        const { data: userData } = await supabase
+  const fetchData = async () => {
+    try {
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      if (authUser) {
+        const { data: profile } = await supabase
           .from('users')
           .select('*')
-          .eq('id', userId)
+          .eq('id', authUser.id)
           .single();
-
-        if (userData) {
-          // Fetch assigned projects
-          const { data: projectUsers } = await supabase
-            .from('project_users')
-            .select('project_id, projects(*)')
-            .eq('user_id', userId);
-
-          // Fetch time entries
-          const { data: timeEntries } = await supabase
-            .from('time_entries')
-            .select('*, projects(*)')
-            .eq('user_id', userId)
-            .order('date', { ascending: false });
-
-          // Fetch tasks
-          const { data: tasks } = await supabase
-            .from('tasks')
-            .select('*, projects(name)')
-            .eq('assigned_to', userId)
-            .order('created_at', { ascending: false });
-
-          setUserDetails({
-            ...userData,
-            assigned_projects: projectUsers?.map((pu) => pu.projects as unknown as Project).filter(Boolean) || [],
-            time_entries: timeEntries || [],
-            tasks: tasks || [],
-          });
-        }
-      } catch (error) {
-        console.error('Error fetching user details:', error);
-      } finally {
-        setIsLoading(false);
+        setCurrentUser(profile);
       }
-    };
 
+      // Fetch user details
+      const { data: userData } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', userId)
+        .single();
+
+      if (userData) {
+        // Fetch assigned projects
+        const { data: projectUsers } = await supabase
+          .from('project_users')
+          .select('project_id, projects(*)')
+          .eq('user_id', userId);
+
+        // Fetch time entries
+        const { data: timeEntries } = await supabase
+          .from('time_entries')
+          .select('*, projects(*)')
+          .eq('user_id', userId)
+          .order('date', { ascending: false });
+
+        // Fetch tasks
+        const { data: tasks } = await supabase
+          .from('tasks')
+          .select('*, projects(name)')
+          .eq('assigned_to', userId)
+          .order('created_at', { ascending: false });
+
+        setUserDetails({
+          ...userData,
+          assigned_projects: projectUsers?.map((pu) => pu.projects as unknown as Project).filter(Boolean) || [],
+          time_entries: timeEntries || [],
+          tasks: tasks || [],
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching user details:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchData();
   }, [userId, supabase]);
+
+  const handleUpdateUser = async (updatedData: Partial<User>) => {
+    if (!userDetails) return;
+
+    setIsSaving(true);
+    try {
+      const { error } = await supabase
+        .from('users')
+        .update(updatedData)
+        .eq('id', userId);
+
+      if (error) throw error;
+
+      toast.success('User updated successfully');
+      setIsEditModalOpen(false);
+      fetchData(); // Refresh data
+    } catch (error) {
+      console.error('Error updating user:', error);
+      toast.error('Failed to update user');
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -191,11 +219,17 @@ export default function UserDetailPage() {
                       {userDetails.location}
                     </div>
                   )}
+                  {userDetails.birthday && (
+                    <div className="flex items-center gap-1">
+                      <Calendar className="h-4 w-4" />
+                      {formatDate(userDetails.birthday)}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
           </div>
-          <Button variant="outline">
+          <Button variant="outline" onClick={() => setIsEditModalOpen(true)}>
             <Edit className="h-4 w-4 mr-2" />
             Edit User
           </Button>
@@ -292,9 +326,8 @@ export default function UserDetailPage() {
                 {userDetails.tasks.slice(0, 5).map((task) => (
                   <div key={task.id} className="flex items-center justify-between p-2 border-b border-gray-100">
                     <div className="flex items-center gap-2">
-                      <div className={`h-2 w-2 rounded-full ${
-                        task.status === 'completed' ? 'bg-[#0a5082]' : 'bg-gray-300'
-                      }`} />
+                      <div className={`h-2 w-2 rounded-full ${task.status === 'completed' ? 'bg-[#0a5082]' : 'bg-gray-300'
+                        }`} />
                       <span className={`text-sm ${task.status === 'completed' ? 'line-through text-gray-400' : ''}`}>
                         {task.title}
                       </span>
@@ -365,6 +398,22 @@ export default function UserDetailPage() {
             </Table>
           </CardContent>
         </Card>
+
+        {/* Edit User Modal */}
+        <Modal
+          isOpen={isEditModalOpen}
+          onClose={() => setIsEditModalOpen(false)}
+          title="Edit User"
+          description="Update user profile information."
+        >
+          <UserForm
+            initialData={userDetails}
+            isAdmin={true}
+            onSubmit={handleUpdateUser}
+            onCancel={() => setIsEditModalOpen(false)}
+            isLoading={isSaving}
+          />
+        </Modal>
       </div>
     </DashboardLayout>
   );
