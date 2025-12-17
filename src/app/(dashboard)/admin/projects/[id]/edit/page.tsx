@@ -83,7 +83,7 @@ export default function EditProjectPage() {
     setIsSaving(true);
 
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('projects')
         .update({
           name: formData.name,
@@ -94,15 +94,25 @@ export default function EditProjectPage() {
           start_date: formData.start_date,
           end_date: formData.end_date,
         })
-        .eq('id', projectId);
+        .eq('id', projectId)
+        .select()
+        .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error updating project:', error);
+        throw error;
+      }
+
+      if (!data) {
+        throw new Error('No data returned from update');
+      }
 
       toast.success('Project updated successfully!');
       router.push(`/admin/projects/${projectId}`);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating project:', error);
-      toast.error('Failed to update project');
+      const errorMessage = error?.message || 'Failed to update project';
+      toast.error(errorMessage);
     } finally {
       setIsSaving(false);
     }
