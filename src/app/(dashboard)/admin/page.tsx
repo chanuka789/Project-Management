@@ -24,7 +24,8 @@ import {
   Plus,
   Calendar,
 } from 'lucide-react';
-import type { User, Project, TimeEntry } from '@/types/database';
+import type { User, Project, TimeEntry, SupportedCurrency } from '@/types/database';
+import { convertToAED, DEFAULT_EXCHANGE_RATES } from '@/lib/currency';
 
 interface DashboardData {
   totalProjects: number;
@@ -353,7 +354,7 @@ export default function AdminDashboard() {
   );
 }
 
-// Helper function to calculate labor costs
+// Helper function to calculate labor costs (all converted to AED)
 async function calculateLaborCosts(supabase: ReturnType<typeof createClient>): Promise<number> {
   const { data: timeEntries } = await supabase
     .from('time_entries')
@@ -361,14 +362,22 @@ async function calculateLaborCosts(supabase: ReturnType<typeof createClient>): P
 
   const { data: users } = await supabase
     .from('users')
-    .select('id, hourly_rate');
+    .select('id, hourly_rate, hourly_rate_currency');
 
   if (!timeEntries || !users) return 0;
 
-  const userRates = new Map(users.map(u => [u.id, u.hourly_rate || 0]));
+  // Store rate in AED for each user
+  const userRatesAed = new Map(users.map(u => {
+    const hourlyRate = u.hourly_rate || 0;
+    const rateCurrency = (u.hourly_rate_currency as SupportedCurrency) || 'AED';
+    const rateInAed = rateCurrency === 'AED'
+      ? hourlyRate
+      : convertToAED(hourlyRate, rateCurrency, DEFAULT_EXCHANGE_RATES[rateCurrency]);
+    return [u.id, rateInAed];
+  }));
 
   return timeEntries.reduce((total, entry) => {
-    const rate = userRates.get(entry.user_id) || 0;
+    const rate = userRatesAed.get(entry.user_id) || 0;
     return total + (entry.hours * rate);
   }, 0);
 }

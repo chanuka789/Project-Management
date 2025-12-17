@@ -28,6 +28,7 @@ export function UserForm({
         birthday: initialData.birthday || '',
         location: initialData.location || '',
         hourly_rate: initialData.hourly_rate,
+        hourly_rate_currency: initialData.hourly_rate_currency || 'AED',
         role: initialData.role,
         default_currency: initialData.default_currency || 'AED',
     });
@@ -93,28 +94,42 @@ export function UserForm({
                                 disabled={isLoading}
                             />
 
+                            <Select
+                                label="Default Currency"
+                                value={formData.default_currency || 'AED'}
+                                onChange={(e) => setFormData({ ...formData, default_currency: e.target.value as SupportedCurrency })}
+                                options={SUPPORTED_CURRENCIES.map(c => ({
+                                    value: c.code,
+                                    label: `${c.flag} ${c.code} - ${c.name}`
+                                }))}
+                                disabled={isLoading}
+                                helperText="Display currency for user's dashboard"
+                            />
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                            <Select
+                                label="Hourly Rate Currency"
+                                value={formData.hourly_rate_currency || 'AED'}
+                                onChange={(e) => setFormData({ ...formData, hourly_rate_currency: e.target.value as SupportedCurrency })}
+                                options={SUPPORTED_CURRENCIES.map(c => ({
+                                    value: c.code,
+                                    label: `${c.flag} ${c.code}`
+                                }))}
+                                disabled={isLoading}
+                            />
+
                             <Input
                                 type="number"
-                                label="Hourly Rate"
+                                label={`Hourly Rate (${formData.hourly_rate_currency || 'AED'})`}
                                 value={formData.hourly_rate}
                                 onChange={(e) => setFormData({ ...formData, hourly_rate: parseFloat(e.target.value) || 0 })}
                                 min="0"
                                 step="0.01"
                                 disabled={isLoading}
+                                className="sm:col-span-2"
                             />
                         </div>
-
-                        <Select
-                            label="Default Currency"
-                            value={formData.default_currency || 'AED'}
-                            onChange={(e) => setFormData({ ...formData, default_currency: e.target.value as SupportedCurrency })}
-                            options={SUPPORTED_CURRENCIES.map(c => ({
-                                value: c.code,
-                                label: `${c.flag} ${c.code} - ${c.name}`
-                            }))}
-                            disabled={isLoading}
-                            helperText="This currency will be used to display amounts in the user's dashboard"
-                        />
                     </div>
                 )}
             </div>
