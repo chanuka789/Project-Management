@@ -1,10 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import { User, UserRole } from '@/types/database';
+import { User, UserRole, SupportedCurrency } from '@/types/database';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
+import { SUPPORTED_CURRENCIES } from '@/lib/currency';
 
 interface UserFormProps {
     initialData: User;
@@ -28,6 +29,7 @@ export function UserForm({
         location: initialData.location || '',
         hourly_rate: initialData.hourly_rate,
         role: initialData.role,
+        default_currency: initialData.default_currency || 'AED',
     });
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -78,26 +80,40 @@ export function UserForm({
                 />
 
                 {isAdmin && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 border-t">
-                        <Select
-                            label="Role"
-                            value={formData.role}
-                            onChange={(e) => setFormData({ ...formData, role: e.target.value as UserRole })}
-                            options={[
-                                { value: 'user', label: 'User' },
-                                { value: 'admin', label: 'Admin' },
-                            ]}
-                            disabled={isLoading}
-                        />
+                    <div className="space-y-4 pt-4 border-t">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <Select
+                                label="Role"
+                                value={formData.role}
+                                onChange={(e) => setFormData({ ...formData, role: e.target.value as UserRole })}
+                                options={[
+                                    { value: 'user', label: 'User' },
+                                    { value: 'admin', label: 'Admin' },
+                                ]}
+                                disabled={isLoading}
+                            />
 
-                        <Input
-                            type="number"
-                            label="Hourly Rate"
-                            value={formData.hourly_rate}
-                            onChange={(e) => setFormData({ ...formData, hourly_rate: parseFloat(e.target.value) || 0 })}
-                            min="0"
-                            step="0.01"
+                            <Input
+                                type="number"
+                                label="Hourly Rate"
+                                value={formData.hourly_rate}
+                                onChange={(e) => setFormData({ ...formData, hourly_rate: parseFloat(e.target.value) || 0 })}
+                                min="0"
+                                step="0.01"
+                                disabled={isLoading}
+                            />
+                        </div>
+
+                        <Select
+                            label="Default Currency"
+                            value={formData.default_currency || 'AED'}
+                            onChange={(e) => setFormData({ ...formData, default_currency: e.target.value as SupportedCurrency })}
+                            options={SUPPORTED_CURRENCIES.map(c => ({
+                                value: c.code,
+                                label: `${c.flag} ${c.code} - ${c.name}`
+                            }))}
                             disabled={isLoading}
+                            helperText="This currency will be used to display amounts in the user's dashboard"
                         />
                     </div>
                 )}

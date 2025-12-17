@@ -49,6 +49,7 @@ export function Sidebar({ role, logoUrl, companyName = 'QS Consultancy' }: Sideb
     { href: '/user/projects', label: 'My Projects', icon: FolderKanban },
     { href: '/user/timesheet', label: 'Timesheet', icon: Clock },
     { href: '/user/tasks', label: 'My Tasks', icon: ClipboardList },
+    { href: '/user/my-payments', label: 'My Payments', icon: Wallet },
   ];
 
   const links = role === 'admin' ? adminLinks : userLinks;
