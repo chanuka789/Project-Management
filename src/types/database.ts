@@ -11,6 +11,7 @@ export interface User {
   role: UserRole;
   hourly_rate: number;
   avatar_url?: string;
+  default_currency?: SupportedCurrency;
   created_at: string;
   updated_at: string;
 }

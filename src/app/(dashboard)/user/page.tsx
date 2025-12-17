@@ -22,18 +22,24 @@ import {
   CheckCircle2,
   Circle,
   Plus,
+  Wallet,
+  DollarSign,
 } from 'lucide-react';
-import type { User, Project, Task, TimeEntry } from '@/types/database';
+import type { User, Project, Task, TimeEntry, UserPayment, SupportedCurrency } from '@/types/database';
+import { formatCurrencyWithCode, DEFAULT_EXCHANGE_RATES, getCurrencyInfo } from '@/lib/currency';
 
 interface UserDashboardData {
   assignedProjects: Project[];
   tasks: Task[];
   timeEntries: TimeEntry[];
+  payments: UserPayment[];
   totalHours: number;
   weeklyHours: number;
   monthlyHours: number;
   completedTasks: number;
   pendingTasks: number;
+  totalReceived: number;
+  pendingPayments: number;
 }
 
 export default function UserDashboard() {
@@ -76,6 +82,23 @@ export default function UserDashboard() {
           .eq('user_id', authUser.id)
           .order('date', { ascending: false });
 
+        // Fetch user payments
+        let userPayments: UserPayment[] = [];
+        const { data: paymentsData, error: paymentsError } = await supabase
+          .from('user_payments')
+          .select('*')
+          .eq('user_id', authUser.id)
+          .order('payment_date', { ascending: false });
+
+        if (paymentsError) {
+          // Fallback to localStorage
+          const savedPayments = localStorage.getItem('user_payments');
+          const allPayments: UserPayment[] = savedPayments ? JSON.parse(savedPayments) : [];
+          userPayments = allPayments.filter(p => p.user_id === authUser.id);
+        } else {
+          userPayments = paymentsData || [];
+        }
+
         // Calculate metrics
         const now = new Date();
         const weekStart = new Date(now);
@@ -93,15 +116,26 @@ export default function UserDashboard() {
         const completedTasks = (tasks || []).filter(t => t.status === 'completed').length;
         const pendingTasks = (tasks || []).filter(t => t.status !== 'completed').length;
 
+        // Calculate payment metrics (in AED)
+        const totalReceived = userPayments
+          .filter(p => p.status === 'completed')
+          .reduce((sum, p) => sum + (p.amount_aed || p.amount), 0);
+        const pendingPaymentsAmount = userPayments
+          .filter(p => p.status === 'pending')
+          .reduce((sum, p) => sum + (p.amount_aed || p.amount), 0);
+
         setData({
           assignedProjects: (projectUsers || []).map((pu) => pu.projects as unknown as Project).filter(Boolean),
           tasks: tasks || [],
           timeEntries: timeEntries || [],
+          payments: userPayments,
           totalHours,
           weeklyHours,
           monthlyHours,
           completedTasks,
           pendingTasks,
+          totalReceived,
+          pendingPayments: pendingPaymentsAmount,
         });
       } catch (error) {
         console.error('Error fetching data:', error);
@@ -143,6 +177,21 @@ export default function UserDashboard() {
 
   // Calculate cost contribution (read-only)
   const totalCost = (data?.totalHours || 0) * (user?.hourly_rate || 0);
+
+  // User's preferred currency
+  const userCurrency = (user?.default_currency as SupportedCurrency) || 'AED';
+  const currencyInfo = getCurrencyInfo(userCurrency);
+
+  // Convert AED to user's currency
+  const convertToUserCurrency = (amountAed: number): number => {
+    if (userCurrency === 'AED') return amountAed;
+    const rate = DEFAULT_EXCHANGE_RATES[userCurrency];
+    if (rate === 0) return amountAed;
+    return amountAed / rate;
+  };
+
+  const totalReceivedInUserCurrency = convertToUserCurrency(data?.totalReceived || 0);
+  const pendingPaymentsInUserCurrency = convertToUserCurrency(data?.pendingPayments || 0);
 
   return (
     <DashboardLayout user={user} title="My Dashboard" logoUrl={logoUrl} companyName={companyName}>
@@ -189,6 +238,67 @@ export default function UserDashboard() {
             icon={<ClipboardList className="h-5 w-5" />}
           />
         </div>
+
+        {/* Payment Summary Card */}
+        {(data?.payments && data.payments.length > 0) || (data?.pendingPayments && data.pendingPayments > 0) ? (
+          <Card className="bg-gradient-to-r from-primary/5 to-primary/10 border-primary/20">
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <Wallet className="h-5 w-5 text-primary" />
+                Payment Summary ({currencyInfo?.flag} {userCurrency})
+              </CardTitle>
+              <Link href="/user/my-payments">
+                <Button variant="ghost" size="sm">
+                  View All <ArrowRight className="h-4 w-4 ml-1" />
+                </Button>
+              </Link>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="bg-card rounded-lg p-4 border border-border">
+                  <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                    <CheckCircle2 className="h-4 w-4" />
+                    <span className="text-sm">Total Received</span>
+                  </div>
+                  <p className="text-2xl font-bold text-primary">
+                    {formatCurrencyWithCode(totalReceivedInUserCurrency, userCurrency)}
+                  </p>
+                  {userCurrency !== 'AED' && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      ≈ {formatCurrencyWithCode(data?.totalReceived || 0, 'AED')}
+                    </p>
+                  )}
+                </div>
+                <div className="bg-card rounded-lg p-4 border border-border">
+                  <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                    <Clock className="h-4 w-4" />
+                    <span className="text-sm">Pending</span>
+                  </div>
+                  <p className="text-2xl font-bold text-warning">
+                    {formatCurrencyWithCode(pendingPaymentsInUserCurrency, userCurrency)}
+                  </p>
+                  {userCurrency !== 'AED' && data?.pendingPayments && data.pendingPayments > 0 && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      ≈ {formatCurrencyWithCode(data?.pendingPayments || 0, 'AED')}
+                    </p>
+                  )}
+                </div>
+                <div className="bg-card rounded-lg p-4 border border-border">
+                  <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                    <DollarSign className="h-4 w-4" />
+                    <span className="text-sm">Total Payments</span>
+                  </div>
+                  <p className="text-2xl font-bold text-foreground">
+                    {data?.payments.length || 0}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {data?.payments.filter(p => p.status === 'completed').length || 0} completed
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ) : null}
 
         {/* Time Chart */}
         <Card>
