@@ -10,6 +10,7 @@ export interface User {
   location?: string;
   role: UserRole;
   hourly_rate: number;
+  hourly_rate_currency?: SupportedCurrency;
   avatar_url?: string;
   default_currency?: SupportedCurrency;
   created_at: string;

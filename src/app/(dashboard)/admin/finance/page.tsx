@@ -22,7 +22,8 @@ import {
   ArrowUpRight,
   ArrowDownRight,
 } from 'lucide-react';
-import type { User, Project } from '@/types/database';
+import type { User, Project, SupportedCurrency } from '@/types/database';
+import { convertToAED, DEFAULT_EXCHANGE_RATES } from '@/lib/currency';
 
 interface ProjectFinance {
   id: string;
@@ -73,10 +74,10 @@ export default function FinancePage() {
           .select('*')
           .order('created_at', { ascending: false });
 
-        // Fetch all time entries with user info
+        // Fetch all time entries with user info (including hourly_rate_currency)
         const { data: timeEntries } = await supabase
           .from('time_entries')
-          .select('*, users(id, full_name, hourly_rate)');
+          .select('*, users(id, full_name, hourly_rate, hourly_rate_currency)');
 
         // Fetch all additional costs
         const { data: additionalCosts } = await supabase
@@ -85,10 +86,15 @@ export default function FinancePage() {
 
         // Calculate project finances
         const projectFinances: ProjectFinance[] = (projects || []).map((project) => {
-          // Labor cost for this project
+          // Labor cost for this project (converted to AED)
           const projectTimeEntries = (timeEntries || []).filter(te => te.project_id === project.id);
           const laborCost = projectTimeEntries.reduce((sum, te) => {
-            return sum + (te.hours * (te.users?.hourly_rate || 0));
+            const hourlyRate = te.users?.hourly_rate || 0;
+            const rateCurrency = (te.users?.hourly_rate_currency as SupportedCurrency) || 'AED';
+            const hourlyRateAed = rateCurrency === 'AED'
+              ? hourlyRate
+              : convertToAED(hourlyRate, rateCurrency, DEFAULT_EXCHANGE_RATES[rateCurrency]);
+            return sum + (te.hours * hourlyRateAed);
           }, 0);
 
           // Additional costs for this project
@@ -120,12 +126,17 @@ export default function FinancePage() {
         const totalProfit = totalContractValue - totalCost;
         const profitMargin = totalContractValue > 0 ? (totalProfit / totalContractValue) * 100 : 0;
 
-        // Calculate user costs
+        // Calculate user costs (converted to AED)
         const userCostMap = new Map<string, { name: string; cost: number }>();
-        (timeEntries || []).forEach((te: { hours: number; users?: { id: string; full_name: string; hourly_rate: number } }) => {
+        (timeEntries || []).forEach((te: { hours: number; users?: { id: string; full_name: string; hourly_rate: number; hourly_rate_currency?: string } }) => {
           if (te.users) {
             const existing = userCostMap.get(te.users.id);
-            const cost = te.hours * te.users.hourly_rate;
+            const hourlyRate = te.users.hourly_rate;
+            const rateCurrency = (te.users.hourly_rate_currency as SupportedCurrency) || 'AED';
+            const hourlyRateAed = rateCurrency === 'AED'
+              ? hourlyRate
+              : convertToAED(hourlyRate, rateCurrency, DEFAULT_EXCHANGE_RATES[rateCurrency]);
+            const cost = te.hours * hourlyRateAed;
             if (existing) {
               existing.cost += cost;
             } else {

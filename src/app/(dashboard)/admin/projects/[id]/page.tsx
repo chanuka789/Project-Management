@@ -36,7 +36,8 @@ import {
   UserPlus,
   X,
 } from 'lucide-react';
-import type { User, Project, Task, TimeEntry, AdditionalCost } from '@/types/database';
+import type { User, Project, Task, TimeEntry, AdditionalCost, SupportedCurrency } from '@/types/database';
+import { convertToAED, DEFAULT_EXCHANGE_RATES } from '@/lib/currency';
 
 interface ProjectDetails extends Project {
   assigned_users: User[];
@@ -151,8 +152,14 @@ export default function ProjectDetailPage() {
 
   // Calculate metrics
   const totalHours = project?.time_entries.reduce((sum, te) => sum + te.hours, 0) || 0;
+  // Calculate labor cost in AED (converting hourly rates from their respective currencies)
   const laborCost = project?.time_entries.reduce((sum, te) => {
-    return sum + (te.hours * (te.users?.hourly_rate || 0));
+    const hourlyRate = te.users?.hourly_rate || 0;
+    const rateCurrency = (te.users?.hourly_rate_currency as SupportedCurrency) || 'AED';
+    const hourlyRateAed = rateCurrency === 'AED'
+      ? hourlyRate
+      : convertToAED(hourlyRate, rateCurrency, DEFAULT_EXCHANGE_RATES[rateCurrency]);
+    return sum + (te.hours * hourlyRateAed);
   }, 0) || 0;
   const additionalCostTotal = project?.additional_costs.reduce((sum, c) => sum + c.amount, 0) || 0;
   const totalCost = laborCost + additionalCostTotal;

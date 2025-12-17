@@ -175,9 +175,6 @@ export default function UserDashboard() {
     };
   });
 
-  // Calculate cost contribution (read-only)
-  const totalCost = (data?.totalHours || 0) * (user?.hourly_rate || 0);
-
   // User's preferred currency
   const userCurrency = (user?.default_currency as SupportedCurrency) || 'AED';
   const currencyInfo = getCurrencyInfo(userCurrency);
@@ -189,6 +186,15 @@ export default function UserDashboard() {
     if (rate === 0) return amountAed;
     return amountAed / rate;
   };
+
+  // Calculate cost contribution in AED (for admin reference) and user's currency
+  const hourlyRate = user?.hourly_rate || 0;
+  const hourlyRateCurrency = (user?.hourly_rate_currency as SupportedCurrency) || 'AED';
+  const hourlyRateAed = hourlyRateCurrency === 'AED'
+    ? hourlyRate
+    : hourlyRate * (DEFAULT_EXCHANGE_RATES[hourlyRateCurrency] || 1);
+  const totalCostAed = (data?.totalHours || 0) * hourlyRateAed;
+  const totalCostInUserCurrency = convertToUserCurrency(totalCostAed);
 
   const totalReceivedInUserCurrency = convertToUserCurrency(data?.totalReceived || 0);
   const pendingPaymentsInUserCurrency = convertToUserCurrency(data?.pendingPayments || 0);
@@ -449,7 +455,10 @@ export default function UserDashboard() {
                 <p className="text-sm text-gray-500 mb-2">Total Hours Logged</p>
                 <p className="text-3xl font-bold text-[#0a5082]">{data?.totalHours.toFixed(1) || 0}</p>
                 <p className="text-sm text-gray-500 mt-2">
-                  Cost contribution: {formatCurrency(totalCost)}
+                  Cost contribution: {formatCurrencyWithCode(totalCostInUserCurrency, userCurrency)}
+                  {userCurrency !== 'AED' && (
+                    <span className="text-xs ml-1">(≈ {formatCurrencyWithCode(totalCostAed, 'AED')})</span>
+                  )}
                 </p>
               </div>
             </div>
