@@ -41,7 +41,8 @@ import {
   Printer,
   Edit,
 } from 'lucide-react';
-import type { User, Project, PaymentStatus, PaymentMethod } from '@/types/database';
+import type { User, Project, PaymentStatus, PaymentMethod, SupportedCurrency } from '@/types/database';
+import { formatCurrencyWithCode, getCurrencyInfo } from '@/lib/currency';
 
 // Payment type for Supabase storage
 interface Payment {
@@ -66,6 +67,9 @@ interface ProjectWithPayments extends Project {
   total_pending: number;
   balance_due: number;
   payment_percentage: number;
+  currency: SupportedCurrency;
+  contract_value_aed?: number;
+  exchange_rate?: number;
 }
 
 interface ClientContact {
@@ -541,9 +545,18 @@ export default function PaymentsPage() {
 
     const project = selectedProjectForInvoice;
     const payment = selectedPayment;
+    const projectCurrency = (project.currency as SupportedCurrency) || 'AED';
+    const currencyInfo = getCurrencyInfo(projectCurrency);
+    const isNonAED = projectCurrency !== 'AED';
+
     const paymentPercentage = project.contract_value > 0
       ? ((payment.amount / project.contract_value) * 100).toFixed(0)
       : '100';
+
+    // Calculate AED equivalent for non-AED currencies
+    const exchangeRate = project.exchange_rate || 1;
+    const paymentAmountAed = isNonAED ? payment.amount * exchangeRate : payment.amount;
+    const contractValueAed = project.contract_value_aed || project.contract_value;
 
     const invoiceHtml = `
       <!DOCTYPE html>
@@ -551,227 +564,492 @@ export default function PaymentsPage() {
       <head>
         <title>Invoice ${payment.invoice_number}</title>
         <style>
+          @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
           * { margin: 0; padding: 0; box-sizing: border-box; }
+
           body {
-            font-family: 'Segoe UI', Arial, sans-serif;
-            color: #333;
-            line-height: 1.5;
+            font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
+            color: #1a1a2e;
+            line-height: 1.6;
             background: #fff;
+            -webkit-font-smoothing: antialiased;
           }
+
           .invoice-container {
             max-width: 800px;
             margin: 0 auto;
-            padding: 40px;
-            position: relative;
+            padding: 0;
+            background: #fff;
           }
-          .watermark {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            font-size: 200px;
-            font-weight: bold;
-            color: rgba(0, 86, 145, 0.05);
-            pointer-events: none;
-            z-index: 0;
-          }
+
+          /* Modern Header with Gradient */
           .header {
-            background: #005691;
+            background: linear-gradient(135deg, #0a5082 0%, #063a5e 100%);
             color: white;
-            padding: 20px 30px;
+            padding: 40px;
             display: flex;
             justify-content: space-between;
-            align-items: center;
-            margin: -40px -40px 30px -40px;
+            align-items: flex-start;
+            position: relative;
+            overflow: hidden;
           }
-          .header h1 {
-            font-size: 28px;
-            font-weight: 600;
-            letter-spacing: 2px;
+
+          .header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -20%;
+            width: 60%;
+            height: 200%;
+            background: rgba(255, 255, 255, 0.03);
+            transform: rotate(15deg);
           }
-          .logo-section {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-          }
-          .logo-section img {
-            height: 50px;
-            width: auto;
-          }
-          .company-name-header {
-            font-size: 14px;
-            font-weight: 600;
-            text-align: right;
-            line-height: 1.3;
-          }
-          .info-section {
-            margin-bottom: 25px;
+
+          .header-left {
             position: relative;
             z-index: 1;
           }
-          .info-row {
-            display: flex;
+
+          .invoice-title {
+            font-size: 32px;
+            font-weight: 700;
+            letter-spacing: 3px;
             margin-bottom: 8px;
           }
-          .info-label {
-            font-weight: 600;
-            color: #005691;
-            min-width: 140px;
-          }
-          .info-value {
-            color: #333;
-          }
-          .section-title {
-            color: #005691;
+
+          .invoice-number {
             font-size: 14px;
+            opacity: 0.9;
+            font-weight: 400;
+          }
+
+          .header-right {
+            text-align: right;
+            position: relative;
+            z-index: 1;
+          }
+
+          .logo-container {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 16px;
+            margin-bottom: 12px;
+          }
+
+          .logo-container img {
+            height: 60px;
+            width: auto;
+            border-radius: 8px;
+          }
+
+          .company-name {
+            font-size: 16px;
             font-weight: 600;
-            margin: 25px 0 10px 0;
-            text-decoration: underline;
+            line-height: 1.4;
           }
+
+          /* Info Cards Section */
+          .info-section {
+            padding: 40px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+          }
+
+          .info-card {
+            background: #f8fafc;
+            border-radius: 12px;
+            padding: 24px;
+            border: 1px solid #e2e8f0;
+          }
+
+          .info-card-title {
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #0a5082;
+            margin-bottom: 16px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #0a5082;
+          }
+
+          .info-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            font-size: 13px;
+          }
+
+          .info-row:last-child {
+            margin-bottom: 0;
+          }
+
+          .info-label {
+            color: #64748b;
+            font-weight: 500;
+          }
+
+          .info-value {
+            color: #1a1a2e;
+            font-weight: 600;
+            text-align: right;
+          }
+
+          /* Bill To/From Section */
           .bill-section {
-            margin-bottom: 15px;
+            padding: 0 40px 30px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
           }
-          .bill-section p {
-            color: #333;
+
+          .bill-card {
+            padding: 20px;
+            border-radius: 12px;
           }
+
+          .bill-from {
+            background: linear-gradient(135deg, #0a5082 0%, #1a6da8 100%);
+            color: white;
+          }
+
+          .bill-to {
+            background: #f1f5f9;
+            border: 2px solid #e2e8f0;
+          }
+
+          .bill-title {
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 12px;
+            opacity: 0.8;
+          }
+
+          .bill-to .bill-title {
+            color: #0a5082;
+          }
+
+          .bill-name {
+            font-size: 16px;
+            font-weight: 600;
+          }
+
+          .bill-to .bill-name {
+            color: #1a1a2e;
+          }
+
+          /* Payment Table */
+          .table-section {
+            padding: 0 40px 40px;
+          }
+
+          .table-title {
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #0a5082;
+            margin-bottom: 16px;
+          }
+
           table {
             width: 100%;
             border-collapse: collapse;
-            margin: 20px 0;
-            position: relative;
-            z-index: 1;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
           }
+
           th {
-            background: #005691;
+            background: linear-gradient(135deg, #0a5082 0%, #063a5e 100%);
             color: white;
-            padding: 12px 15px;
-            text-align: center;
+            padding: 16px 20px;
+            text-align: left;
             font-weight: 600;
-            font-size: 13px;
-          }
-          td {
-            padding: 15px;
-            text-align: center;
-            border: 1px solid #ddd;
-            font-size: 14px;
-          }
-          .total-row {
-            background: #f5f5f5;
-          }
-          .total-row td {
-            font-weight: 600;
-          }
-          .total-label {
-            text-align: right !important;
-            background: #005691;
-            color: white;
-          }
-          .total-value {
-            background: #e8f4fc;
-            color: #005691;
-            font-weight: 700;
-            font-size: 16px;
-          }
-          .footer {
-            margin-top: 40px;
-            padding-top: 20px;
-            border-top: 2px solid #005691;
-            position: relative;
-            z-index: 1;
-          }
-          .footer-title {
-            color: #005691;
-            font-size: 14px;
-            font-weight: 600;
-            margin-bottom: 10px;
-            text-decoration: underline;
-          }
-          .footer p {
             font-size: 12px;
-            color: #555;
-            margin: 3px 0;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
           }
+
+          th:last-child {
+            text-align: right;
+          }
+
+          td {
+            padding: 20px;
+            border-bottom: 1px solid #e2e8f0;
+            font-size: 14px;
+            color: #1a1a2e;
+          }
+
+          td:last-child {
+            text-align: right;
+            font-weight: 600;
+          }
+
+          .amount-cell {
+            font-family: 'SF Mono', 'Roboto Mono', monospace;
+          }
+
+          .sub-amount {
+            display: block;
+            font-size: 11px;
+            color: #64748b;
+            font-weight: 400;
+            margin-top: 4px;
+          }
+
+          /* Total Row */
+          .total-row {
+            background: linear-gradient(135deg, #0a5082 0%, #063a5e 100%);
+          }
+
+          .total-row td {
+            color: white;
+            border: none;
+            font-size: 16px;
+            font-weight: 700;
+          }
+
+          .total-row td:first-child {
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-size: 12px;
+          }
+
+          /* Currency Badge */
+          .currency-badge {
+            display: inline-block;
+            background: rgba(10, 80, 130, 0.1);
+            color: #0a5082;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            margin-left: 8px;
+          }
+
+          /* Exchange Rate Note */
+          .exchange-note {
+            background: #fef3c7;
+            border: 1px solid #fcd34d;
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin-top: 20px;
+            font-size: 12px;
+            color: #92400e;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+          }
+
+          .exchange-note-icon {
+            width: 16px;
+            height: 16px;
+          }
+
+          /* Footer */
+          .footer {
+            background: #f8fafc;
+            padding: 30px 40px;
+            border-top: 3px solid #0a5082;
+          }
+
+          .footer-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+          }
+
+          .footer-left {
+            flex: 1;
+          }
+
+          .footer-title {
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #0a5082;
+            margin-bottom: 12px;
+          }
+
+          .footer-company {
+            font-weight: 600;
+            color: #1a1a2e;
+            margin-bottom: 8px;
+          }
+
+          .footer-contact {
+            font-size: 13px;
+            color: #64748b;
+            line-height: 1.8;
+          }
+
+          .footer-right {
+            text-align: right;
+          }
+
+          .thank-you {
+            font-size: 24px;
+            font-weight: 300;
+            color: #0a5082;
+            margin-bottom: 8px;
+          }
+
+          .payment-terms {
+            font-size: 12px;
+            color: #64748b;
+          }
+
           @media print {
-            body { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
-            .invoice-container { padding: 20px; }
-            .header { margin: -20px -20px 30px -20px; }
+            body {
+              print-color-adjust: exact;
+              -webkit-print-color-adjust: exact;
+            }
+            .invoice-container {
+              box-shadow: none;
+            }
           }
         </style>
       </head>
       <body>
         <div class="invoice-container">
-          <div class="watermark">QS</div>
-
+          <!-- Header -->
           <div class="header">
-            <h1>INVOICE</h1>
-            <div class="logo-section">
-              ${logoUrl ? `<img src="${logoUrl}" alt="Logo" />` : ''}
-              <div class="company-name-header">
-                ${companyName || 'Quantity Surveying<br/>Global Solutions'}
+            <div class="header-left">
+              <div class="invoice-title">INVOICE</div>
+              <div class="invoice-number">${payment.invoice_number}</div>
+            </div>
+            <div class="header-right">
+              <div class="logo-container">
+                ${logoUrl ? `<img src="${logoUrl}" alt="Company Logo" />` : ''}
+              </div>
+              <div class="company-name">${companyName || 'QS Global Solutions'}</div>
+            </div>
+          </div>
+
+          <!-- Info Section -->
+          <div class="info-section">
+            <div class="info-card">
+              <div class="info-card-title">Invoice Details</div>
+              <div class="info-row">
+                <span class="info-label">Invoice Date</span>
+                <span class="info-value">${new Date(payment.payment_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
+              </div>
+              ${payment.due_date ? `
+              <div class="info-row">
+                <span class="info-label">Due Date</span>
+                <span class="info-value">${new Date(payment.due_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
+              </div>
+              ` : ''}
+              <div class="info-row">
+                <span class="info-label">Currency</span>
+                <span class="info-value">${currencyInfo?.flag || ''} ${projectCurrency}</span>
               </div>
             </div>
-          </div>
 
-          <div class="info-section">
-            <div class="info-row">
-              <span class="info-label">Invoice No:</span>
-              <span class="info-value">${payment.invoice_number}</span>
-            </div>
-            <div class="info-row">
-              <span class="info-label">Client:</span>
-              <span class="info-value">${project.client_name || 'N/A'}</span>
-            </div>
-            <div class="info-row">
-              <span class="info-label">Project Name:</span>
-              <span class="info-value">${project.name}</span>
-            </div>
-            <div class="info-row">
-              <span class="info-label">Project Location:</span>
-              <span class="info-value">${project.description || 'N/A'}</span>
-            </div>
-            <div class="info-row">
-              <span class="info-label">Date:</span>
-              <span class="info-value">${new Date(payment.payment_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
+            <div class="info-card">
+              <div class="info-card-title">Project Information</div>
+              <div class="info-row">
+                <span class="info-label">Project Name</span>
+                <span class="info-value">${project.name}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Client</span>
+                <span class="info-value">${project.client_name || 'N/A'}</span>
+              </div>
+              ${project.description ? `
+              <div class="info-row">
+                <span class="info-label">Location</span>
+                <span class="info-value">${project.description}</span>
+              </div>
+              ` : ''}
             </div>
           </div>
 
-          <div class="section-title">Bill From</div>
+          <!-- Bill From / To -->
           <div class="bill-section">
-            <p>${companyName || 'Quantity Surveying Global Solutions Pvt Ltd'}</p>
+            <div class="bill-card bill-from">
+              <div class="bill-title">From</div>
+              <div class="bill-name">${companyName || 'QS Global Solutions Pvt Ltd'}</div>
+            </div>
+            <div class="bill-card bill-to">
+              <div class="bill-title">Bill To</div>
+              <div class="bill-name">${project.client_name || 'Client Name'}</div>
+            </div>
           </div>
 
-          <div class="section-title">Bill To</div>
-          <div class="bill-section">
-            <p>${project.client_name || 'Client Name'}</p>
+          <!-- Payment Table -->
+          <div class="table-section">
+            <div class="table-title">Payment Summary</div>
+            <table>
+              <thead>
+                <tr>
+                  <th>Description</th>
+                  <th>Contract Value</th>
+                  <th>Percentage</th>
+                  <th>Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>
+                    Professional Services
+                    <span class="currency-badge">${projectCurrency}</span>
+                  </td>
+                  <td class="amount-cell">
+                    ${formatCurrencyWithCode(project.contract_value, projectCurrency)}
+                    ${isNonAED ? `<span class="sub-amount">≈ ${formatCurrencyWithCode(contractValueAed, 'AED')}</span>` : ''}
+                  </td>
+                  <td>${paymentPercentage}%</td>
+                  <td class="amount-cell">
+                    ${formatCurrencyWithCode(payment.amount, projectCurrency)}
+                    ${isNonAED ? `<span class="sub-amount">≈ ${formatCurrencyWithCode(paymentAmountAed, 'AED')}</span>` : ''}
+                  </td>
+                </tr>
+                <tr class="total-row">
+                  <td colspan="3">Total Amount Due</td>
+                  <td class="amount-cell">
+                    ${formatCurrencyWithCode(payment.amount, projectCurrency)}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+
+            ${isNonAED ? `
+            <div class="exchange-note">
+              <svg class="exchange-note-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/>
+                <path d="M12 16v-4M12 8h.01"/>
+              </svg>
+              <span>Exchange Rate Applied: 1 ${projectCurrency} = ${exchangeRate.toFixed(4)} AED (as of ${project.exchange_rate_date || new Date().toISOString().split('T')[0]})</span>
+            </div>
+            ` : ''}
           </div>
 
-          <div class="section-title">Payment Invoice</div>
-          <table>
-            <thead>
-              <tr>
-                <th>Total Quoted Amount (AED)</th>
-                <th>Payment percentage for this invoice</th>
-                <th>Amount (AED)</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>${project.contract_value.toLocaleString('en-AE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                <td>${paymentPercentage}%</td>
-                <td>${payment.amount.toLocaleString('en-AE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-              </tr>
-              <tr class="total-row">
-                <td colspan="2" class="total-label">Invoice amount</td>
-                <td class="total-value">${payment.amount.toLocaleString('en-AE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-              </tr>
-            </tbody>
-          </table>
-
+          <!-- Footer -->
           <div class="footer">
-            <div class="footer-title">Contact Info</div>
-            <p><strong>${companyName || 'Quantity Surveying Global Solutions Pvt Ltd'}</strong></p>
-            ${companyEmail ? `<p>Email - ${companyEmail}</p>` : '<p>Email - info@qs-global-solutions.com</p>'}
-            ${companyPhone ? `<p>Tel - ${companyPhone}</p>` : '<p>Tel - +971 54 554 7086 / +965 9986 9738 / +94 714927395</p>'}
+            <div class="footer-content">
+              <div class="footer-left">
+                <div class="footer-title">Contact Information</div>
+                <div class="footer-company">${companyName || 'QS Global Solutions Pvt Ltd'}</div>
+                <div class="footer-contact">
+                  ${companyEmail ? `Email: ${companyEmail}` : 'Email: info@qs-global-solutions.com'}<br/>
+                  ${companyPhone ? `Tel: ${companyPhone}` : 'Tel: +971 54 554 7086 / +965 9986 9738 / +94 714927395'}
+                  ${companyAddress ? `<br/>Address: ${companyAddress}` : ''}
+                </div>
+              </div>
+              <div class="footer-right">
+                <div class="thank-you">Thank You</div>
+                <div class="payment-terms">Payment terms: Due upon receipt</div>
+              </div>
+            </div>
           </div>
         </div>
         <script>
@@ -1183,7 +1461,10 @@ export default function PaymentsPage() {
                       <div className="flex items-center gap-4">
                         <div className="text-right">
                           <p className="text-sm text-muted-foreground">Contract Value</p>
-                          <p className="text-lg font-bold text-foreground">{formatCurrency(project.contract_value)}</p>
+                          <p className="text-lg font-bold text-foreground">{formatCurrencyWithCode(project.contract_value, (project.currency as SupportedCurrency) || 'AED')}</p>
+                          {project.currency && project.currency !== 'AED' && project.contract_value_aed && (
+                            <p className="text-xs text-muted-foreground">≈ {formatCurrencyWithCode(project.contract_value_aed, 'AED')}</p>
+                          )}
                         </div>
                         <div className="flex items-center gap-2">
                           <Button
@@ -1399,8 +1680,19 @@ export default function PaymentsPage() {
                 <span className="font-medium">{selectedProjectForInvoice.client_name || 'N/A'}</span>
               </div>
               <div className="flex justify-between">
+                <span className="text-muted-foreground">Currency:</span>
+                <span className="font-medium">{getCurrencyInfo((selectedProjectForInvoice.currency as SupportedCurrency) || 'AED')?.flag} {selectedProjectForInvoice.currency || 'AED'}</span>
+              </div>
+              <div className="flex justify-between">
                 <span className="text-muted-foreground">Amount:</span>
-                <span className="font-medium text-primary">{formatCurrency(selectedPayment.amount)}</span>
+                <div className="text-right">
+                  <span className="font-medium text-primary">{formatCurrencyWithCode(selectedPayment.amount, (selectedProjectForInvoice.currency as SupportedCurrency) || 'AED')}</span>
+                  {selectedProjectForInvoice.currency && selectedProjectForInvoice.currency !== 'AED' && (
+                    <span className="block text-xs text-muted-foreground">
+                      ≈ {formatCurrencyWithCode(selectedPayment.amount * (selectedProjectForInvoice.exchange_rate || 1), 'AED')}
+                    </span>
+                  )}
+                </div>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Date:</span>

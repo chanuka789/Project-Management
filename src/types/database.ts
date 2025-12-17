@@ -15,6 +15,8 @@ export interface User {
   updated_at: string;
 }
 
+export type SupportedCurrency = 'AED' | 'USD' | 'QAR' | 'SAR' | 'LKR';
+
 export interface Project {
   id: string;
   name: string;
@@ -23,6 +25,10 @@ export interface Project {
   start_date: string;
   end_date: string;
   contract_value: number;
+  contract_value_aed?: number;
+  currency: SupportedCurrency;
+  exchange_rate?: number;
+  exchange_rate_date?: string;
   status: 'planning' | 'in_progress' | 'on_hold' | 'completed' | 'cancelled';
   created_by: string;
   created_at: string;

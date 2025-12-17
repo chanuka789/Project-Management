@@ -13,7 +13,8 @@ import { Select } from '@/components/ui/select';
 import { ArrowLeft, Save } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useCompanySettings } from '@/hooks/use-company-settings';
-import type { User, Project } from '@/types/database';
+import type { User, Project, SupportedCurrency } from '@/types/database';
+import { SUPPORTED_CURRENCIES, DEFAULT_EXCHANGE_RATES, convertToAED, formatCurrencyWithCode } from '@/lib/currency';
 
 export default function EditProjectPage() {
   const params = useParams();
@@ -28,6 +29,8 @@ export default function EditProjectPage() {
     client_name: '',
     status: 'planning',
     contract_value: '',
+    currency: 'AED' as SupportedCurrency,
+    exchange_rate: 1.0,
     start_date: '',
     end_date: '',
   });
@@ -63,6 +66,8 @@ export default function EditProjectPage() {
             client_name: projectData.client_name || '',
             status: projectData.status || 'planning',
             contract_value: projectData.contract_value?.toString() || '',
+            currency: (projectData.currency as SupportedCurrency) || 'AED',
+            exchange_rate: projectData.exchange_rate || DEFAULT_EXCHANGE_RATES[projectData.currency as SupportedCurrency] || 1.0,
             start_date: projectData.start_date || '',
             end_date: projectData.end_date || '',
           });
@@ -83,6 +88,13 @@ export default function EditProjectPage() {
     setIsSaving(true);
 
     try {
+      // Calculate exchange rate and AED equivalent
+      const contractValue = parseFloat(formData.contract_value) || 0;
+      const exchangeRate = DEFAULT_EXCHANGE_RATES[formData.currency];
+      const contractValueAed = formData.currency === 'AED'
+        ? contractValue
+        : convertToAED(contractValue, formData.currency, exchangeRate);
+
       const { data, error } = await supabase
         .from('projects')
         .update({
@@ -90,7 +102,11 @@ export default function EditProjectPage() {
           description: formData.description || null,
           client_name: formData.client_name || null,
           status: formData.status,
-          contract_value: parseFloat(formData.contract_value) || 0,
+          contract_value: contractValue,
+          contract_value_aed: contractValueAed,
+          currency: formData.currency,
+          exchange_rate: exchangeRate,
+          exchange_rate_date: new Date().toISOString().split('T')[0],
           start_date: formData.start_date,
           end_date: formData.end_date,
         })
@@ -204,16 +220,49 @@ export default function EditProjectPage() {
                   ]}
                 />
 
-                <Input
-                  label="Contract Value (AED)"
-                  type="number"
-                  value={formData.contract_value}
-                  onChange={(e) => handleChange('contract_value', e.target.value)}
-                  placeholder="0.00"
-                  min="0"
-                  step="0.01"
-                  required
-                />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <Select
+                    label="Currency"
+                    value={formData.currency}
+                    onChange={(e) => handleChange('currency', e.target.value)}
+                    options={SUPPORTED_CURRENCIES.map(c => ({
+                      value: c.code,
+                      label: `${c.flag} ${c.code} - ${c.name}`
+                    }))}
+                  />
+                  <Input
+                    label={`Contract Value (${formData.currency})`}
+                    type="number"
+                    value={formData.contract_value}
+                    onChange={(e) => handleChange('contract_value', e.target.value)}
+                    placeholder="0.00"
+                    min="0"
+                    step="0.01"
+                    required
+                  />
+                </div>
+
+                {/* AED Equivalent Preview */}
+                {formData.currency !== 'AED' && formData.contract_value && (
+                  <div className="bg-primary-50 dark:bg-primary-900/20 border border-primary-200 dark:border-primary-800 rounded-lg p-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">AED Equivalent (at current rate):</span>
+                      <span className="text-lg font-semibold text-primary">
+                        {formatCurrencyWithCode(
+                          convertToAED(
+                            parseFloat(formData.contract_value) || 0,
+                            formData.currency,
+                            DEFAULT_EXCHANGE_RATES[formData.currency]
+                          ),
+                          'AED'
+                        )}
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Exchange Rate: 1 {formData.currency} = {DEFAULT_EXCHANGE_RATES[formData.currency].toFixed(4)} AED
+                    </p>
+                  </div>
+                )}
               </div>
 
               {/* Timeline */}
