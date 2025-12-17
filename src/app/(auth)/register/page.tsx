@@ -48,24 +48,18 @@ export default function RegisterPage() {
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
+        options: {
+          data: {
+            full_name: formData.fullName,
+            phone: formData.phone,
+            location: formData.location,
+          },
+        },
       });
 
       if (authError) throw authError;
 
       if (authData.user) {
-        // Create user profile
-        const { error: profileError } = await supabase.from('users').insert({
-          id: authData.user.id,
-          email: formData.email,
-          full_name: formData.fullName,
-          phone: formData.phone || null,
-          location: formData.location || null,
-          role: 'user', // Default role
-          hourly_rate: 0,
-        });
-
-        if (profileError) throw profileError;
-
         router.push('/user');
       }
     } catch (err: unknown) {
