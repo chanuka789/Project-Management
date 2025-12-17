@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { DashboardLayout } from '@/components/layout/dashboard-layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -22,7 +22,6 @@ import {
   Search,
   DollarSign,
   TrendingUp,
-  TrendingDown,
   Clock,
   CheckCircle2,
   AlertCircle,
@@ -30,25 +29,37 @@ import {
   Building2,
   Mail,
   Phone,
-  Filter,
   Download,
-  Eye,
-  Edit,
   Trash2,
   CreditCard,
   Banknote,
   FileText,
-  Calendar,
   ChevronDown,
   ChevronUp,
   PieChart,
   BarChart3,
   X,
+  Printer,
 } from 'lucide-react';
-import type { User, Project, Payment, PaymentStatus, PaymentMethod } from '@/types/database';
+import type { User, Project, PaymentStatus, PaymentMethod } from '@/types/database';
+
+// Local payment type for localStorage storage
+interface LocalPayment {
+  id: string;
+  project_id: string;
+  amount: number;
+  payment_date: string;
+  due_date?: string;
+  status: PaymentStatus;
+  payment_method?: PaymentMethod;
+  reference_number?: string;
+  invoice_number: string;
+  description?: string;
+  created_at: string;
+}
 
 interface ProjectWithPayments extends Project {
-  payments: Payment[];
+  payments: LocalPayment[];
   total_paid: number;
   total_pending: number;
   balance_due: number;
@@ -60,23 +71,39 @@ interface ClientContact {
   phones: string[];
 }
 
+// Generate unique invoice number
+const generateInvoiceNumber = (existingPayments: LocalPayment[]): string => {
+  const existingNumbers = existingPayments
+    .map(p => {
+      const match = p.invoice_number?.match(/INV-(\d+)/);
+      return match ? parseInt(match[1], 10) : 0;
+    })
+    .filter(n => n > 0);
+
+  const maxNumber = existingNumbers.length > 0 ? Math.max(...existingNumbers) : 0;
+  const nextNumber = maxNumber + 1;
+  return `INV-${nextNumber.toString().padStart(6, '0')}`;
+};
+
 export default function PaymentsPage() {
   const [user, setUser] = useState<User | null>(null);
   const [projects, setProjects] = useState<ProjectWithPayments[]>([]);
-  const [payments, setPayments] = useState<Payment[]>([]);
+  const [payments, setPayments] = useState<LocalPayment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [showAddModal, setShowAddModal] = useState(false);
-  const [showDetailsModal, setShowDetailsModal] = useState(false);
-  const [selectedProject, setSelectedProject] = useState<ProjectWithPayments | null>(null);
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
-  const [paymentToDelete, setPaymentToDelete] = useState<Payment | null>(null);
+  const [paymentToDelete, setPaymentToDelete] = useState<LocalPayment | null>(null);
   const [clientContacts, setClientContacts] = useState<Record<string, ClientContact>>({});
   const [showClientModal, setShowClientModal] = useState(false);
   const [editingClientId, setEditingClientId] = useState<string | null>(null);
   const [clientForm, setClientForm] = useState<ClientContact>({ emails: [''], phones: [''] });
+  const [showInvoiceModal, setShowInvoiceModal] = useState(false);
+  const [selectedPayment, setSelectedPayment] = useState<LocalPayment | null>(null);
+  const [selectedProjectForInvoice, setSelectedProjectForInvoice] = useState<ProjectWithPayments | null>(null);
+  const invoiceRef = useRef<HTMLDivElement>(null);
 
   const [paymentForm, setPaymentForm] = useState({
     project_id: '',
@@ -91,7 +118,7 @@ export default function PaymentsPage() {
   });
 
   const supabase = createClient();
-  const { companyName, logoUrl } = useCompanySettings();
+  const { companyName, logoUrl, companyEmail, companyPhone, companyAddress } = useCompanySettings();
 
   useEffect(() => {
     fetchData();
@@ -115,13 +142,9 @@ export default function PaymentsPage() {
         .select('*')
         .order('created_at', { ascending: false });
 
-      // Fetch all payments
-      const { data: paymentsData } = await supabase
-        .from('payments')
-        .select('*')
-        .order('payment_date', { ascending: false });
-
-      const allPayments = paymentsData || [];
+      // Load payments from localStorage
+      const savedPayments = localStorage.getItem('project_payments');
+      const allPayments: LocalPayment[] = savedPayments ? JSON.parse(savedPayments) : [];
       setPayments(allPayments);
 
       // Calculate payment summaries for each project
@@ -150,7 +173,7 @@ export default function PaymentsPage() {
 
       setProjects(projectsWithPayments);
 
-      // Load client contacts from localStorage (temporary storage)
+      // Load client contacts from localStorage
       const savedContacts = localStorage.getItem('client_contacts');
       if (savedContacts) {
         setClientContacts(JSON.parse(savedContacts));
@@ -236,23 +259,24 @@ export default function PaymentsPage() {
   const handleAddPayment = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const { data: { user: authUser } } = await supabase.auth.getUser();
-      if (!authUser) return;
+      const invoiceNumber = paymentForm.invoice_number || generateInvoiceNumber(payments);
 
-      const { error } = await supabase.from('payments').insert({
+      const newPayment: LocalPayment = {
+        id: crypto.randomUUID(),
         project_id: paymentForm.project_id,
         amount: parseFloat(paymentForm.amount),
         payment_date: paymentForm.payment_date,
-        due_date: paymentForm.due_date || null,
+        due_date: paymentForm.due_date || undefined,
         status: paymentForm.status,
         payment_method: paymentForm.payment_method,
-        reference_number: paymentForm.reference_number || null,
-        invoice_number: paymentForm.invoice_number || null,
-        description: paymentForm.description || null,
-        created_by: authUser.id,
-      });
+        reference_number: paymentForm.reference_number || undefined,
+        invoice_number: invoiceNumber,
+        description: paymentForm.description || undefined,
+        created_at: new Date().toISOString(),
+      };
 
-      if (error) throw error;
+      const updatedPayments = [...payments, newPayment];
+      localStorage.setItem('project_payments', JSON.stringify(updatedPayments));
 
       setShowAddModal(false);
       setPaymentForm({
@@ -273,7 +297,7 @@ export default function PaymentsPage() {
     }
   };
 
-  const handleDeleteClick = (payment: Payment) => {
+  const handleDeleteClick = (payment: LocalPayment) => {
     setPaymentToDelete(payment);
     setDeleteModalOpen(true);
   };
@@ -281,8 +305,8 @@ export default function PaymentsPage() {
   const handleDeleteConfirm = async () => {
     if (!paymentToDelete) return;
     try {
-      const { error } = await supabase.from('payments').delete().eq('id', paymentToDelete.id);
-      if (error) throw error;
+      const updatedPayments = payments.filter(p => p.id !== paymentToDelete.id);
+      localStorage.setItem('project_payments', JSON.stringify(updatedPayments));
       fetchData();
     } catch (error) {
       console.error('Error deleting payment:', error);
@@ -348,6 +372,263 @@ export default function PaymentsPage() {
       case 'cash': return <DollarSign className="h-4 w-4" />;
       default: return <Receipt className="h-4 w-4" />;
     }
+  };
+
+  const openInvoicePreview = (payment: LocalPayment, project: ProjectWithPayments) => {
+    setSelectedPayment(payment);
+    setSelectedProjectForInvoice(project);
+    setShowInvoiceModal(true);
+  };
+
+  const handlePrintInvoice = () => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow || !selectedPayment || !selectedProjectForInvoice) return;
+
+    const project = selectedProjectForInvoice;
+    const payment = selectedPayment;
+    const contacts = clientContacts[project.id];
+    const paymentPercentage = project.contract_value > 0
+      ? ((payment.amount / project.contract_value) * 100).toFixed(0)
+      : '100';
+
+    const invoiceHtml = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Invoice ${payment.invoice_number}</title>
+        <style>
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            color: #333;
+            line-height: 1.5;
+            background: #fff;
+          }
+          .invoice-container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 40px;
+            position: relative;
+          }
+          .watermark {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 200px;
+            font-weight: bold;
+            color: rgba(0, 86, 145, 0.05);
+            pointer-events: none;
+            z-index: 0;
+          }
+          .header {
+            background: #005691;
+            color: white;
+            padding: 20px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: -40px -40px 30px -40px;
+          }
+          .header h1 {
+            font-size: 28px;
+            font-weight: 600;
+            letter-spacing: 2px;
+          }
+          .logo-section {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+          }
+          .logo-section img {
+            height: 50px;
+            width: auto;
+          }
+          .company-name-header {
+            font-size: 14px;
+            font-weight: 600;
+            text-align: right;
+            line-height: 1.3;
+          }
+          .info-section {
+            margin-bottom: 25px;
+            position: relative;
+            z-index: 1;
+          }
+          .info-row {
+            display: flex;
+            margin-bottom: 8px;
+          }
+          .info-label {
+            font-weight: 600;
+            color: #005691;
+            min-width: 140px;
+          }
+          .info-value {
+            color: #333;
+          }
+          .section-title {
+            color: #005691;
+            font-size: 14px;
+            font-weight: 600;
+            margin: 25px 0 10px 0;
+            text-decoration: underline;
+          }
+          .bill-section {
+            margin-bottom: 15px;
+          }
+          .bill-section p {
+            color: #333;
+          }
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            position: relative;
+            z-index: 1;
+          }
+          th {
+            background: #005691;
+            color: white;
+            padding: 12px 15px;
+            text-align: center;
+            font-weight: 600;
+            font-size: 13px;
+          }
+          td {
+            padding: 15px;
+            text-align: center;
+            border: 1px solid #ddd;
+            font-size: 14px;
+          }
+          .total-row {
+            background: #f5f5f5;
+          }
+          .total-row td {
+            font-weight: 600;
+          }
+          .total-label {
+            text-align: right !important;
+            background: #005691;
+            color: white;
+          }
+          .total-value {
+            background: #e8f4fc;
+            color: #005691;
+            font-weight: 700;
+            font-size: 16px;
+          }
+          .footer {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 2px solid #005691;
+            position: relative;
+            z-index: 1;
+          }
+          .footer-title {
+            color: #005691;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 10px;
+            text-decoration: underline;
+          }
+          .footer p {
+            font-size: 12px;
+            color: #555;
+            margin: 3px 0;
+          }
+          @media print {
+            body { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+            .invoice-container { padding: 20px; }
+            .header { margin: -20px -20px 30px -20px; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="invoice-container">
+          <div class="watermark">QS</div>
+
+          <div class="header">
+            <h1>INVOICE</h1>
+            <div class="logo-section">
+              ${logoUrl ? `<img src="${logoUrl}" alt="Logo" />` : ''}
+              <div class="company-name-header">
+                ${companyName || 'Quantity Surveying<br/>Global Solutions'}
+              </div>
+            </div>
+          </div>
+
+          <div class="info-section">
+            <div class="info-row">
+              <span class="info-label">Invoice No:</span>
+              <span class="info-value">${payment.invoice_number}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Client:</span>
+              <span class="info-value">${project.client_name || 'N/A'}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Project Name:</span>
+              <span class="info-value">${project.name}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Project Location:</span>
+              <span class="info-value">${project.description || 'N/A'}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Date:</span>
+              <span class="info-value">${new Date(payment.payment_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
+            </div>
+          </div>
+
+          <div class="section-title">Bill From</div>
+          <div class="bill-section">
+            <p>${companyName || 'Quantity Surveying Global Solutions Pvt Ltd'}</p>
+          </div>
+
+          <div class="section-title">Bill To</div>
+          <div class="bill-section">
+            <p>${project.client_name || 'Client Name'}</p>
+          </div>
+
+          <div class="section-title">Payment Invoice</div>
+          <table>
+            <thead>
+              <tr>
+                <th>Total Quoted Amount (AED)</th>
+                <th>Payment percentage for this invoice</th>
+                <th>Amount (AED)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>${project.contract_value.toLocaleString('en-AE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                <td>${paymentPercentage}%</td>
+                <td>${payment.amount.toLocaleString('en-AE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+              </tr>
+              <tr class="total-row">
+                <td colspan="2" class="total-label">Invoice amount</td>
+                <td class="total-value">${payment.amount.toLocaleString('en-AE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div class="footer">
+            <div class="footer-title">Contact Info</div>
+            <p><strong>${companyName || 'Quantity Surveying Global Solutions Pvt Ltd'}</strong></p>
+            ${companyEmail ? `<p>Email - ${companyEmail}</p>` : '<p>Email - info@qs-global-solutions.com</p>'}
+            ${companyPhone ? `<p>Tel - ${companyPhone}</p>` : '<p>Tel - +971 54 554 7086 / +965 9986 9738 / +94 714927395</p>'}
+          </div>
+        </div>
+        <script>
+          window.onload = function() { window.print(); }
+        </script>
+      </body>
+      </html>
+    `;
+
+    printWindow.document.write(invoiceHtml);
+    printWindow.document.close();
   };
 
   if (isLoading) {
@@ -728,7 +1009,7 @@ export default function PaymentsPage() {
                                 <TableRow key={payment.id}>
                                   <TableCell>{formatDate(payment.payment_date)}</TableCell>
                                   <TableCell>
-                                    {payment.invoice_number || '-'}
+                                    <span className="font-mono text-sm">{payment.invoice_number || '-'}</span>
                                   </TableCell>
                                   <TableCell className="max-w-xs truncate">
                                     {payment.description || '-'}
@@ -749,14 +1030,25 @@ export default function PaymentsPage() {
                                     {payment.due_date ? formatDate(payment.due_date) : '-'}
                                   </TableCell>
                                   <TableCell>
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      className="h-8 w-8 text-red-500"
-                                      onClick={() => handleDeleteClick(payment)}
-                                    >
-                                      <Trash2 className="h-4 w-4" />
-                                    </Button>
+                                    <div className="flex items-center gap-1">
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8 text-primary"
+                                        onClick={() => openInvoicePreview(payment, project)}
+                                        title="Generate Invoice"
+                                      >
+                                        <Printer className="h-4 w-4" />
+                                      </Button>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8 text-red-500"
+                                        onClick={() => handleDeleteClick(payment)}
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    </div>
                                   </TableCell>
                                 </TableRow>
                               ))
@@ -862,10 +1154,10 @@ export default function PaymentsPage() {
               ]}
             />
             <Input
-              label="Invoice Number"
+              label="Invoice Number (auto-generated if empty)"
               value={paymentForm.invoice_number}
               onChange={(e) => setPaymentForm({ ...paymentForm, invoice_number: e.target.value })}
-              placeholder="INV-001"
+              placeholder={`Next: ${generateInvoiceNumber(payments)}`}
             />
           </div>
 
@@ -894,6 +1186,64 @@ export default function PaymentsPage() {
             </Button>
           </div>
         </form>
+      </Modal>
+
+      {/* Invoice Preview Modal */}
+      <Modal
+        isOpen={showInvoiceModal}
+        onClose={() => {
+          setShowInvoiceModal(false);
+          setSelectedPayment(null);
+          setSelectedProjectForInvoice(null);
+        }}
+        title="Invoice Preview"
+        description="Preview and print the invoice"
+        size="lg"
+      >
+        {selectedPayment && selectedProjectForInvoice && (
+          <div className="space-y-4">
+            <div className="bg-muted/50 rounded-lg p-4 space-y-2">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Invoice Number:</span>
+                <span className="font-mono font-medium">{selectedPayment.invoice_number}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Project:</span>
+                <span className="font-medium">{selectedProjectForInvoice.name}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Client:</span>
+                <span className="font-medium">{selectedProjectForInvoice.client_name || 'N/A'}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Amount:</span>
+                <span className="font-medium text-primary">{formatCurrency(selectedPayment.amount)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Date:</span>
+                <span className="font-medium">{formatDate(selectedPayment.payment_date)}</span>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setShowInvoiceModal(false);
+                  setSelectedPayment(null);
+                  setSelectedProjectForInvoice(null);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button onClick={handlePrintInvoice}>
+                <Printer className="h-4 w-4 mr-2" />
+                Print / Save as PDF
+              </Button>
+            </div>
+          </div>
+        )}
       </Modal>
 
       {/* Client Contact Modal */}
