@@ -93,7 +93,6 @@ export default function EditProjectPage() {
           contract_value: parseFloat(formData.contract_value) || 0,
           start_date: formData.start_date,
           end_date: formData.end_date,
-          updated_at: new Date().toISOString(),
         })
         .eq('id', projectId);
 
