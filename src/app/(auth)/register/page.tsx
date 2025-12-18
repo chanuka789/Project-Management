@@ -3,11 +3,10 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import Image from 'next/image';
 import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { useCompanySettings } from '@/hooks/use-company-settings';
 import { Mail, User, Phone, MapPin, Building2, KeyRound, ArrowLeft, CheckCircle2 } from 'lucide-react';
 
@@ -39,10 +38,8 @@ export default function RegisterPage() {
     setIsLoading(true);
 
     try {
-      // Get the base URL for redirects
       const redirectUrl = `${window.location.origin}/auth/callback`;
 
-      // Sign up with email OTP (magic link)
       const { error: signUpError } = await supabase.auth.signInWithOtp({
         email: formData.email,
         options: {
@@ -50,14 +47,12 @@ export default function RegisterPage() {
           data: {
             full_name: formData.fullName,
           },
-          // For new users, this creates an account
           shouldCreateUser: true,
         },
       });
 
       if (signUpError) throw signUpError;
 
-      // Move to verification step
       setStep('verify');
     } catch (err: unknown) {
       const error = err as { message?: string };
@@ -83,7 +78,6 @@ export default function RegisterPage() {
       if (verifyError) throw verifyError;
 
       if (data.user) {
-        // Move to profile completion step
         setStep('profile');
       }
     } catch (err: unknown) {
@@ -107,7 +101,6 @@ export default function RegisterPage() {
         throw new Error('User not found');
       }
 
-      // Update user profile with additional details
       const { error: updateError } = await supabase
         .from('users')
         .update({
@@ -119,7 +112,6 @@ export default function RegisterPage() {
 
       if (updateError) {
         console.log('Profile update error (may be expected):', updateError);
-        // Profile might already be created by trigger, try insert as fallback
         const { error: insertError } = await supabase
           .from('users')
           .upsert({
@@ -137,10 +129,8 @@ export default function RegisterPage() {
         }
       }
 
-      // Show success step
       setStep('success');
 
-      // Redirect after showing success
       setTimeout(() => {
         router.push('/user');
       }, 2000);
@@ -158,7 +148,6 @@ export default function RegisterPage() {
     setIsLoading(true);
 
     try {
-      // Get the base URL for redirects
       const redirectUrl = `${window.location.origin}/auth/callback`;
 
       const { error } = await supabase.auth.signInWithOtp({
@@ -173,7 +162,7 @@ export default function RegisterPage() {
       });
 
       if (error) throw error;
-      setError(''); // Clear any previous error
+      setError('');
       alert('Verification code resent! Check your email.');
     } catch (err: unknown) {
       const error = err as { message?: string };
@@ -184,89 +173,97 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#0a5082]/5 via-white to-[#0a5082]/10 p-4">
-      <div className="w-full max-w-md">
-        {/* Logo */}
-        <div className="flex justify-center mb-8">
-          <div className="flex items-center gap-3">
-            {logoUrl ? (
-              <div className="h-14 w-14 rounded-xl overflow-hidden shadow-lg">
-                <Image
-                  src={logoUrl}
-                  alt={companyName}
-                  width={56}
-                  height={56}
-                  className="w-full h-full object-cover"
-                />
-              </div>
-            ) : (
-              <div className="h-14 w-14 rounded-xl bg-gradient-to-br from-[#0a5082] to-[#063a5e] flex items-center justify-center shadow-lg">
-                <Building2 className="h-8 w-8 text-white" />
-              </div>
-            )}
-            <div>
-              <h1 className="text-2xl font-bold text-[#0a5082]">{companyName}</h1>
-              <p className="text-sm text-gray-500">Project Management System</p>
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#0a5082] via-[#0d6ebd] to-[#1a8cdb] p-4">
+      {/* Background Pattern */}
+      <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg%20width%3D%2260%22%20height%3D%2260%22%20viewBox%3D%220%200%2060%2060%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cg%20fill%3D%22none%22%20fill-rule%3D%22evenodd%22%3E%3Cg%20fill%3D%22%23ffffff%22%20fill-opacity%3D%220.05%22%3E%3Cpath%20d%3D%22M36%2034v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6%2034v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6%204V0H4v4H0v2h4v4h2V6h4V4H6z%22%2F%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fsvg%3E')] opacity-50" />
+
+      <div className="relative w-full max-w-md z-10">
+        {/* Logo Section */}
+        <div className="flex flex-col items-center mb-8">
+          {logoUrl ? (
+            <div className="h-20 w-20 rounded-2xl overflow-hidden shadow-2xl bg-white p-1 mb-4">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={logoUrl}
+                alt={companyName}
+                className="w-full h-full object-contain rounded-xl"
+              />
             </div>
-          </div>
+          ) : (
+            <div className="h-20 w-20 rounded-2xl bg-white/10 backdrop-blur-sm flex items-center justify-center shadow-2xl mb-4 border border-white/20">
+              <Building2 className="h-10 w-10 text-white" />
+            </div>
+          )}
+          <h1 className="text-2xl sm:text-3xl font-bold text-white text-center">{companyName}</h1>
+          <p className="text-white/70 text-sm mt-1">Project Management System</p>
         </div>
 
-        <Card className="shadow-xl border-0">
+        {/* Registration Card */}
+        <Card className="shadow-2xl border-0 bg-white/95 backdrop-blur-sm">
           {/* Step 1: Email & Name Entry */}
           {step === 'email' && (
             <>
-              <CardHeader className="text-center">
-                <CardTitle className="text-2xl">Create Account</CardTitle>
-                <CardDescription>
-                  Enter your email to get started
-                </CardDescription>
+              <CardHeader className="text-center pb-2 pt-8">
+                <h2 className="text-2xl font-bold text-gray-800">Create Account</h2>
+                <p className="text-gray-500 text-sm mt-1">Enter your details to get started</p>
               </CardHeader>
-              <CardContent>
-                <form onSubmit={handleSendOTP} className="space-y-4">
+              <CardContent className="px-8 pb-8">
+                <form onSubmit={handleSendOTP} className="space-y-5">
                   {error && (
                     <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-red-600 text-sm">
                       {error}
                     </div>
                   )}
 
-                  <div className="relative">
-                    <User className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-                    <Input
-                      type="text"
-                      name="fullName"
-                      placeholder="Full Name"
-                      value={formData.fullName}
-                      onChange={handleChange}
-                      className="pl-10"
-                      required
-                    />
-                  </div>
+                  <div className="space-y-4">
+                    <div className="relative">
+                      <User className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                      <Input
+                        type="text"
+                        name="fullName"
+                        placeholder="Full Name"
+                        value={formData.fullName}
+                        onChange={handleChange}
+                        className="pl-10 h-12 bg-gray-50 border-gray-200 focus:bg-white transition-colors"
+                        required
+                      />
+                    </div>
 
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-                    <Input
-                      type="email"
-                      name="email"
-                      placeholder="Email address"
-                      value={formData.email}
-                      onChange={handleChange}
-                      className="pl-10"
-                      required
-                    />
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                      <Input
+                        type="email"
+                        name="email"
+                        placeholder="Email address"
+                        value={formData.email}
+                        onChange={handleChange}
+                        className="pl-10 h-12 bg-gray-50 border-gray-200 focus:bg-white transition-colors"
+                        required
+                      />
+                    </div>
                   </div>
 
                   <Button
                     type="submit"
-                    className="w-full"
+                    className="w-full h-12 bg-[#0a5082] hover:bg-[#0d6ebd] text-white font-semibold text-base transition-all duration-200 shadow-lg hover:shadow-xl"
                     size="lg"
                     isLoading={isLoading}
                   >
                     Send Verification Code
                   </Button>
 
-                  <p className="text-center text-sm text-gray-500">
+                  <div className="relative my-6">
+                    <div className="absolute inset-0 flex items-center">
+                      <div className="w-full border-t border-gray-200"></div>
+                    </div>
+                    <div className="relative flex justify-center text-xs uppercase">
+                      <span className="bg-white px-2 text-gray-400">or</span>
+                    </div>
+                  </div>
+
+                  <p className="text-center text-sm text-gray-600">
                     Already have an account?{' '}
-                    <Link href="/login" className="text-[#0a5082] font-medium hover:underline">
+                    <Link href="/login" className="text-[#0a5082] font-semibold hover:text-[#0d6ebd] transition-colors">
                       Sign In
                     </Link>
                   </p>
@@ -278,20 +275,20 @@ export default function RegisterPage() {
           {/* Step 2: OTP Verification */}
           {step === 'verify' && (
             <>
-              <CardHeader className="text-center">
+              <CardHeader className="text-center pb-2 pt-8">
                 <div className="flex justify-center mb-4">
                   <div className="h-16 w-16 rounded-full bg-[#0a5082]/10 flex items-center justify-center">
                     <KeyRound className="h-8 w-8 text-[#0a5082]" />
                   </div>
                 </div>
-                <CardTitle className="text-2xl">Verify Your Email</CardTitle>
-                <CardDescription>
+                <h2 className="text-2xl font-bold text-gray-800">Verify Your Email</h2>
+                <p className="text-gray-500 text-sm mt-1">
                   We sent an 8-digit code to{' '}
                   <span className="font-medium text-[#0a5082]">{formData.email}</span>
-                </CardDescription>
+                </p>
               </CardHeader>
-              <CardContent>
-                <form onSubmit={handleVerifyOTP} className="space-y-4">
+              <CardContent className="px-8 pb-8">
+                <form onSubmit={handleVerifyOTP} className="space-y-5">
                   {error && (
                     <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-red-600 text-sm">
                       {error}
@@ -306,7 +303,7 @@ export default function RegisterPage() {
                       placeholder="Enter 8-digit code"
                       value={formData.otp}
                       onChange={handleChange}
-                      className="pl-10 text-center text-xl tracking-widest font-mono"
+                      className="pl-10 h-12 text-center text-xl tracking-widest font-mono bg-gray-50 border-gray-200 focus:bg-white"
                       maxLength={8}
                       required
                     />
@@ -314,7 +311,7 @@ export default function RegisterPage() {
 
                   <Button
                     type="submit"
-                    className="w-full"
+                    className="w-full h-12 bg-[#0a5082] hover:bg-[#0d6ebd] text-white font-semibold text-base transition-all duration-200 shadow-lg hover:shadow-xl"
                     size="lg"
                     isLoading={isLoading}
                   >
@@ -333,7 +330,7 @@ export default function RegisterPage() {
                     <button
                       type="button"
                       onClick={handleResendOTP}
-                      className="text-[#0a5082] font-medium hover:underline"
+                      className="text-[#0a5082] font-medium hover:text-[#0d6ebd] transition-colors"
                       disabled={isLoading}
                     >
                       Resend code
@@ -347,53 +344,53 @@ export default function RegisterPage() {
           {/* Step 3: Complete Profile */}
           {step === 'profile' && (
             <>
-              <CardHeader className="text-center">
-                <CardTitle className="text-2xl">Complete Your Profile</CardTitle>
-                <CardDescription>
-                  Add your contact details (optional)
-                </CardDescription>
+              <CardHeader className="text-center pb-2 pt-8">
+                <h2 className="text-2xl font-bold text-gray-800">Complete Your Profile</h2>
+                <p className="text-gray-500 text-sm mt-1">Add your contact details (optional)</p>
               </CardHeader>
-              <CardContent>
-                <form onSubmit={handleCompleteProfile} className="space-y-4">
+              <CardContent className="px-8 pb-8">
+                <form onSubmit={handleCompleteProfile} className="space-y-5">
                   {error && (
                     <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-red-600 text-sm">
                       {error}
                     </div>
                   )}
 
-                  <div className="p-4 bg-gray-50 rounded-lg">
-                    <p className="text-sm text-gray-500">Registered as</p>
-                    <p className="font-medium text-gray-900">{formData.fullName}</p>
+                  <div className="p-4 bg-[#0a5082]/5 rounded-lg border border-[#0a5082]/10">
+                    <p className="text-xs text-gray-500 uppercase tracking-wide">Registered as</p>
+                    <p className="font-semibold text-gray-800 mt-1">{formData.fullName}</p>
                     <p className="text-sm text-[#0a5082]">{formData.email}</p>
                   </div>
 
-                  <div className="relative">
-                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-                    <Input
-                      type="tel"
-                      name="phone"
-                      placeholder="Phone Number (optional)"
-                      value={formData.phone}
-                      onChange={handleChange}
-                      className="pl-10"
-                    />
-                  </div>
+                  <div className="space-y-4">
+                    <div className="relative">
+                      <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                      <Input
+                        type="tel"
+                        name="phone"
+                        placeholder="Phone Number (optional)"
+                        value={formData.phone}
+                        onChange={handleChange}
+                        className="pl-10 h-12 bg-gray-50 border-gray-200 focus:bg-white transition-colors"
+                      />
+                    </div>
 
-                  <div className="relative">
-                    <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-                    <Input
-                      type="text"
-                      name="location"
-                      placeholder="Location (optional)"
-                      value={formData.location}
-                      onChange={handleChange}
-                      className="pl-10"
-                    />
+                    <div className="relative">
+                      <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                      <Input
+                        type="text"
+                        name="location"
+                        placeholder="Location (optional)"
+                        value={formData.location}
+                        onChange={handleChange}
+                        className="pl-10 h-12 bg-gray-50 border-gray-200 focus:bg-white transition-colors"
+                      />
+                    </div>
                   </div>
 
                   <Button
                     type="submit"
-                    className="w-full"
+                    className="w-full h-12 bg-[#0a5082] hover:bg-[#0d6ebd] text-white font-semibold text-base transition-all duration-200 shadow-lg hover:shadow-xl"
                     size="lg"
                     isLoading={isLoading}
                   >
@@ -415,18 +412,16 @@ export default function RegisterPage() {
           {/* Step 4: Success */}
           {step === 'success' && (
             <>
-              <CardHeader className="text-center pb-2">
+              <CardHeader className="text-center pb-2 pt-8">
                 <div className="flex justify-center mb-4">
                   <div className="h-20 w-20 rounded-full bg-green-100 flex items-center justify-center animate-bounce">
                     <CheckCircle2 className="h-10 w-10 text-green-600" />
                   </div>
                 </div>
-                <CardTitle className="text-2xl text-green-600">Welcome!</CardTitle>
-                <CardDescription className="text-base">
-                  Your account has been created successfully
-                </CardDescription>
+                <h2 className="text-2xl font-bold text-green-600">Welcome!</h2>
+                <p className="text-gray-500 mt-1">Your account has been created successfully</p>
               </CardHeader>
-              <CardContent>
+              <CardContent className="px-8 pb-8">
                 <div className="text-center space-y-4">
                   <p className="text-gray-500">
                     Redirecting you to your dashboard...
@@ -440,7 +435,8 @@ export default function RegisterPage() {
           )}
         </Card>
 
-        <p className="text-center text-xs text-gray-400 mt-6">
+        {/* Footer */}
+        <p className="text-center text-sm text-white/60 mt-8">
           &copy; {new Date().getFullYear()} {companyName}. All rights reserved.
         </p>
       </div>

@@ -16,7 +16,7 @@ import { PasswordConfirmModal } from '@/components/ui/password-confirm-modal';
 import { PaymentForm, PaymentFormData } from '@/components/forms/payment-form';
 import { useCompanySettings } from '@/hooks/use-company-settings';
 import { formatCurrency, formatDate } from '@/lib/utils';
-import { formatCurrencyWithCode, getCurrencyInfo, SUPPORTED_CURRENCIES, DEFAULT_EXCHANGE_RATES, convertToAED } from '@/lib/currency';
+import { formatCurrencyWithCode, getCurrencyInfo, SUPPORTED_CURRENCIES, DEFAULT_EXCHANGE_RATES, convertToAED, fetchLiveExchangeRate } from '@/lib/currency';
 import {
   Plus,
   Search,
@@ -316,10 +316,15 @@ export default function UserPaymentsPage() {
   const handleAddPayment = async (formData: PaymentFormData) => {
     try {
       const amount = parseFloat(formData.amount);
-      const exchangeRate = DEFAULT_EXCHANGE_RATES[formData.currency];
-      const amountAed = formData.currency === 'AED'
-        ? amount
-        : convertToAED(amount, formData.currency, exchangeRate);
+
+      // Fetch real-time exchange rate at submission time
+      let exchangeRate = 1;
+      let amountAed = amount;
+
+      if (formData.currency !== 'AED') {
+        exchangeRate = await fetchLiveExchangeRate(formData.currency, 'AED');
+        amountAed = convertToAED(amount, formData.currency, exchangeRate);
+      }
 
       await savePayment({
         user_id: formData.user_id,
@@ -339,6 +344,7 @@ export default function UserPaymentsPage() {
 
       setShowAddModal(false);
       setPreselectedUserId('');
+      setSelectedUserForPayment('');
       fetchData();
     } catch (error) {
       console.error('Error adding payment:', error);
@@ -356,10 +362,15 @@ export default function UserPaymentsPage() {
 
     try {
       const amount = parseFloat(formData.amount);
-      const exchangeRate = DEFAULT_EXCHANGE_RATES[formData.currency];
-      const amountAed = formData.currency === 'AED'
-        ? amount
-        : convertToAED(amount, formData.currency, exchangeRate);
+
+      // Fetch real-time exchange rate at submission time
+      let exchangeRate = 1;
+      let amountAed = amount;
+
+      if (formData.currency !== 'AED') {
+        exchangeRate = await fetchLiveExchangeRate(formData.currency, 'AED');
+        amountAed = convertToAED(amount, formData.currency, exchangeRate);
+      }
 
       await savePayment({
         id: editingPayment.id,
