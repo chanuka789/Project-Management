@@ -13,6 +13,7 @@ import { StatCard } from '@/components/ui/stat-card';
 import { TimeChart } from '@/components/charts/time-chart';
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '@/components/ui/table';
 import { formatCurrency, formatDate } from '@/lib/utils';
+import { formatCurrencyWithCode, convertToAED, SupportedCurrency } from '@/lib/currency';
 import { useCompanySettings } from '@/hooks/use-company-settings';
 import { Modal } from '@/components/ui/modal';
 import { UserForm } from '@/components/users/user-form';
@@ -153,7 +154,10 @@ export default function UserDetailPage() {
 
   // Calculate metrics
   const totalHours = userDetails.time_entries.reduce((sum, te) => sum + te.hours, 0);
-  const totalCost = totalHours * userDetails.hourly_rate;
+  const userCurrency = (userDetails.hourly_rate_currency || 'AED') as SupportedCurrency;
+  const totalCostInUserCurrency = totalHours * userDetails.hourly_rate;
+  const hourlyRateInAED = convertToAED(userDetails.hourly_rate, userCurrency);
+  const totalCostInAED = convertToAED(totalCostInUserCurrency, userCurrency);
   const completedTasks = userDetails.tasks.filter(t => t.status === 'completed').length;
   const pendingTasks = userDetails.tasks.filter(t => t.status !== 'completed').length;
 
@@ -239,7 +243,8 @@ export default function UserDetailPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard
             title="Hourly Rate"
-            value={`${formatCurrency(userDetails.hourly_rate)}/hr`}
+            value={`${formatCurrencyWithCode(userDetails.hourly_rate, userCurrency)}/hr`}
+            description={userCurrency !== 'AED' ? `≈ ${formatCurrencyWithCode(hourlyRateInAED, 'AED')}/hr` : undefined}
             icon={<DollarSign className="h-5 w-5" />}
           />
           <StatCard
@@ -249,7 +254,8 @@ export default function UserDetailPage() {
           />
           <StatCard
             title="Total Cost"
-            value={formatCurrency(totalCost)}
+            value={formatCurrencyWithCode(totalCostInUserCurrency, userCurrency)}
+            description={userCurrency !== 'AED' ? `≈ ${formatCurrencyWithCode(totalCostInAED, 'AED')}` : undefined}
             icon={<DollarSign className="h-5 w-5" />}
           />
           <StatCard
@@ -365,28 +371,39 @@ export default function UserDetailPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {userDetails.time_entries.slice(0, 20).map((entry) => (
-                  <TableRow key={entry.id}>
-                    <TableCell>{formatDate(entry.date)}</TableCell>
-                    <TableCell>
-                      <Link
-                        href={`/admin/projects/${entry.project_id}`}
-                        className="text-[#0a5082] hover:underline"
-                      >
-                        {entry.projects?.name || 'Unknown'}
-                      </Link>
-                    </TableCell>
-                    <TableCell>
-                      {entry.description || <span className="text-gray-400">-</span>}
-                    </TableCell>
-                    <TableCell className="text-right font-medium">
-                      {entry.hours} hrs
-                    </TableCell>
-                    <TableCell className="text-right font-medium text-[#0a5082]">
-                      {formatCurrency(entry.hours * userDetails.hourly_rate)}
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {userDetails.time_entries.slice(0, 20).map((entry) => {
+                  const entryCostInUserCurrency = entry.hours * userDetails.hourly_rate;
+                  const entryCostInAED = convertToAED(entryCostInUserCurrency, userCurrency);
+                  return (
+                    <TableRow key={entry.id}>
+                      <TableCell>{formatDate(entry.date)}</TableCell>
+                      <TableCell>
+                        <Link
+                          href={`/admin/projects/${entry.project_id}`}
+                          className="text-[#0a5082] hover:underline"
+                        >
+                          {entry.projects?.name || 'Unknown'}
+                        </Link>
+                      </TableCell>
+                      <TableCell>
+                        {entry.description || <span className="text-gray-400">-</span>}
+                      </TableCell>
+                      <TableCell className="text-right font-medium">
+                        {entry.hours} hrs
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="font-medium text-[#0a5082]">
+                          {formatCurrencyWithCode(entryCostInUserCurrency, userCurrency)}
+                        </div>
+                        {userCurrency !== 'AED' && (
+                          <div className="text-xs text-gray-500">
+                            ≈ {formatCurrencyWithCode(entryCostInAED, 'AED')}
+                          </div>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
                 {userDetails.time_entries.length === 0 && (
                   <TableRow>
                     <TableCell colSpan={5} className="text-center text-gray-500 py-8">
