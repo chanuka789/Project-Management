@@ -204,15 +204,7 @@ export default function UsersPage() {
   };
 
   const handleOpenAddModal = () => {
-    const password = generatePassword();
-    setNewUserForm({
-      full_name: '',
-      email: '',
-      phone: '',
-      location: '',
-      role: 'user',
-      hourly_rate: '',
-      password,
+      password: '',
     });
     setCreatedUserCreds(null);
     setShowAddModal(true);
@@ -664,22 +656,30 @@ export default function UsersPage() {
                   step="0.01"
                 />
               </div>
-              <div className="p-3 bg-gray-50 rounded-lg">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs text-gray-500 uppercase tracking-wide">Generated Password</p>
-                    <p className="font-mono text-sm">{newUserForm.password}</p>
+              <div className="space-y-2">
+                <div className="flex gap-2">
+                  <div className="flex-1">
+                    <Input
+                      label="Password"
+                      type="text"
+                      value={newUserForm.password}
+                      onChange={(e) => setNewUserForm({ ...newUserForm, password: e.target.value })}
+                      placeholder="Enter password or generate one"
+                      required
+                    />
                   </div>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setNewUserForm({ ...newUserForm, password: generatePassword() })}
-                  >
-                    Regenerate
-                  </Button>
+                  <div className="mt-8">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setNewUserForm({ ...newUserForm, password: generatePassword() })}
+                      title="Generate Password"
+                    >
+                      Generate
+                    </Button>
+                  </div>
                 </div>
-                <p className="text-xs text-gray-500 mt-2">
+                <p className="text-xs text-gray-500">
                   This password will be shown after user creation. Make sure to share it securely.
                 </p>
               </div>
