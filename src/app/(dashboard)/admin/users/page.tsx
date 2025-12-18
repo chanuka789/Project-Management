@@ -204,6 +204,13 @@ export default function UsersPage() {
   };
 
   const handleOpenAddModal = () => {
+    setNewUserForm({
+      full_name: '',
+      email: '',
+      phone: '',
+      location: '',
+      role: 'user',
+      hourly_rate: '',
       password: '',
     });
     setCreatedUserCreds(null);
