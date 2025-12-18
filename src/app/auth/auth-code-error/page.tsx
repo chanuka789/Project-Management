@@ -27,7 +27,7 @@ export default function AuthCodeErrorPage() {
             </p>
             <ol className="text-sm text-blue-800 mt-2 space-y-1 list-decimal list-inside">
               <li>Open the verification email we sent you</li>
-              <li>Find the 6-digit verification code</li>
+              <li>Find the 8-digit verification code</li>
               <li>Enter the code on the registration page</li>
             </ol>
           </div>
