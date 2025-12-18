@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useCompanySettings } from '@/hooks/use-company-settings';
-import { Mail, User, Phone, MapPin, Building2, KeyRound, ArrowLeft, CheckCircle2, Loader2 } from 'lucide-react';
+import { Mail, User, Phone, MapPin, Building2, KeyRound, ArrowLeft, CheckCircle2, Loader2, Lock, Eye, EyeOff } from 'lucide-react';
 
 type RegistrationStep = 'email' | 'verify' | 'profile' | 'success';
 
@@ -17,10 +17,14 @@ export default function RegisterPage() {
   const [formData, setFormData] = useState({
     email: '',
     fullName: '',
+    password: '',
+    confirmPassword: '',
     phone: '',
     location: '',
     otp: '',
   });
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
@@ -31,32 +35,50 @@ export default function RegisterPage() {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  // Step 1: Send OTP to email
+  // Step 1: Sign up with password and send OTP to email
   const handleSendOTP = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
+    // Validate password
+    if (formData.password.length < 6) {
+      setError('Password must be at least 6 characters');
+      return;
+    }
+
+    if (formData.password !== formData.confirmPassword) {
+      setError('Passwords do not match');
+      return;
+    }
+
     setIsLoading(true);
 
     try {
       const redirectUrl = `${window.location.origin}/auth/callback`;
 
-      const { error: signUpError } = await supabase.auth.signInWithOtp({
+      // Sign up with email and password
+      const { data, error: signUpError } = await supabase.auth.signUp({
         email: formData.email,
+        password: formData.password,
         options: {
           emailRedirectTo: redirectUrl,
           data: {
             full_name: formData.fullName,
           },
-          shouldCreateUser: true,
         },
       });
 
       if (signUpError) throw signUpError;
 
+      // Check if user already exists
+      if (data.user && data.user.identities && data.user.identities.length === 0) {
+        throw new Error('An account with this email already exists. Please sign in instead.');
+      }
+
       setStep('verify');
     } catch (err: unknown) {
       const error = err as { message?: string };
-      setError(error.message || 'Failed to send verification code');
+      setError(error.message || 'Failed to create account');
     } finally {
       setIsLoading(false);
     }
@@ -72,7 +94,7 @@ export default function RegisterPage() {
       const { data, error: verifyError } = await supabase.auth.verifyOtp({
         email: formData.email,
         token: formData.otp,
-        type: 'email',
+        type: 'signup',
       });
 
       if (verifyError) throw verifyError;
@@ -148,22 +170,13 @@ export default function RegisterPage() {
     setIsLoading(true);
 
     try {
-      const redirectUrl = `${window.location.origin}/auth/callback`;
-
-      const { error } = await supabase.auth.signInWithOtp({
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
         email: formData.email,
-        options: {
-          emailRedirectTo: redirectUrl,
-          data: {
-            full_name: formData.fullName,
-          },
-          shouldCreateUser: true,
-        },
       });
 
       if (error) throw error;
       setError('');
-      // In a real app, use a toast here
       alert('Verification code resent! Check your email.');
     } catch (err: unknown) {
       const error = err as { message?: string };
@@ -253,6 +266,53 @@ export default function RegisterPage() {
                         />
                       </div>
                     </div>
+
+                    <div className="space-y-2">
+                      <div className="relative group">
+                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 transition-colors group-focus-within:text-[#0a5082] dark:group-focus-within:text-blue-400" />
+                        <Input
+                          type={showPassword ? 'text' : 'password'}
+                          name="password"
+                          placeholder="Password"
+                          value={formData.password}
+                          onChange={handleChange}
+                          className="pl-10 pr-10 h-11 bg-slate-50 dark:bg-slate-950/50 border-slate-200 dark:border-slate-800 focus:ring-2 focus:ring-[#0a5082]/20 dark:focus:ring-blue-500/20 focus:border-[#0a5082] dark:focus:border-blue-500 transition-all"
+                          required
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors outline-none focus:text-[#0a5082]"
+                        >
+                          {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </button>
+                      </div>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 pl-1">
+                        Must be at least 6 characters
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="relative group">
+                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 transition-colors group-focus-within:text-[#0a5082] dark:group-focus-within:text-blue-400" />
+                        <Input
+                          type={showConfirmPassword ? 'text' : 'password'}
+                          name="confirmPassword"
+                          placeholder="Confirm Password"
+                          value={formData.confirmPassword}
+                          onChange={handleChange}
+                          className="pl-10 pr-10 h-11 bg-slate-50 dark:bg-slate-950/50 border-slate-200 dark:border-slate-800 focus:ring-2 focus:ring-[#0a5082]/20 dark:focus:ring-blue-500/20 focus:border-[#0a5082] dark:focus:border-blue-500 transition-all"
+                          required
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors outline-none focus:text-[#0a5082]"
+                        >
+                          {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </button>
+                      </div>
+                    </div>
                   </div>
 
                   <Button
@@ -263,10 +323,10 @@ export default function RegisterPage() {
                     {isLoading ? (
                       <div className="flex items-center gap-2">
                         <Loader2 className="h-4 w-4 animate-spin" />
-                        <span>Sending Code...</span>
+                        <span>Creating Account...</span>
                       </div>
                     ) : (
-                      'Send Verification Code'
+                      'Create Account'
                     )}
                   </Button>
 
@@ -360,7 +420,7 @@ export default function RegisterPage() {
                       className="flex items-center gap-1 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 transition-colors group"
                     >
                       <ArrowLeft className="h-3 w-3 transition-transform group-hover:-translate-x-0.5" />
-                      Change email
+                      Back
                     </button>
                     <button
                       type="button"
