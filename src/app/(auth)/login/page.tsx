@@ -193,11 +193,11 @@ export default function LoginPage() {
               </div>
 
               <div className="mt-6 text-center">
-                <Link 
-                  href="/register" 
+                <Link
+                  href="/register"
                   className="text-sm text-slate-600 dark:text-slate-400 hover:text-[#0a5082] dark:hover:text-blue-400 font-medium transition-colors inline-flex items-center gap-1 group"
                 >
-                  Contact Administrator 
+                  Create an account
                   <span className="group-hover:translate-x-0.5 transition-transform">→</span>
                 </Link>
               </div>
