@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { useCompanySettings } from '@/hooks/use-company-settings';
-import { Mail, Lock, Building2, Eye, EyeOff } from 'lucide-react';
+import { Mail, Lock, Building2, Eye, EyeOff, Loader2 } from 'lucide-react';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -61,87 +61,109 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
-      {/* Decorative Background Elements */}
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-400/10 dark:bg-blue-500/5 rounded-full blur-3xl" />
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-[#0a5082]/10 dark:bg-[#0a5082]/5 rounded-full blur-3xl" />
+    <div className="min-h-screen w-full flex flex-col items-center justify-center p-4 transition-colors duration-300 bg-slate-50 dark:bg-slate-950">
+      
+      {/* Background Gradient & Effects */}
+      <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-blue-500/10 dark:bg-blue-500/10 rounded-full blur-3xl -translate-y-1/2" />
+        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-[#0a5082]/10 dark:bg-[#0a5082]/20 rounded-full blur-3xl translate-y-1/2" />
+        <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 dark:opacity-10 mix-blend-soft-light"></div>
       </div>
 
-      <div className="relative w-full max-w-md z-10">
-        {/* Logo Section */}
-        <div className="flex flex-col items-center mb-10">
+      <div className="w-full max-w-sm z-10 relative">
+        
+        {/* Brand / Logo Section */}
+        <div className="flex flex-col items-center mb-8">
           {logoUrl ? (
-            <div className="mb-6 p-4 bg-white dark:bg-slate-800/50 rounded-2xl shadow-lg backdrop-blur-sm border border-slate-200 dark:border-slate-700">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={logoUrl}
-                alt={companyName}
-                className="h-16 w-auto object-contain"
-              />
+            <div className="relative group">
+              <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 to-[#0a5082] rounded-full blur opacity-25 group-hover:opacity-50 transition duration-1000 group-hover:duration-200" />
+              <div className="relative h-20 w-20 bg-white dark:bg-slate-900 rounded-2xl flex items-center justify-center shadow-xl border border-slate-100 dark:border-slate-800">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={logoUrl}
+                  alt={companyName}
+                  className="h-12 w-auto object-contain p-2"
+                />
+              </div>
             </div>
           ) : (
-            <div className="h-20 w-20 rounded-2xl bg-white dark:bg-slate-800 flex items-center justify-center shadow-xl mb-6 border border-slate-200 dark:border-slate-700">
-              <Building2 className="h-10 w-10 text-[#0a5082]" />
+            <div className="h-16 w-16 bg-gradient-to-br from-[#0a5082] to-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-900/20">
+              <Building2 className="h-8 w-8 text-white" />
             </div>
           )}
         </div>
 
-        {/* Login Card */}
-        <Card className="shadow-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/95 backdrop-blur-xl">
-          <CardHeader className="text-center pb-2 pt-8">
-            <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Welcome Back</h2>
-            <p className="text-slate-600 dark:text-slate-400 text-sm mt-2">Sign in to your account to continue</p>
+        {/* Main Card */}
+        <Card className="border-0 shadow-2xl bg-white/80 dark:bg-slate-900/60 backdrop-blur-xl ring-1 ring-slate-200 dark:ring-slate-800">
+          <CardHeader className="space-y-1 text-center pb-2 pt-8">
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
+              Welcome back
+            </h1>
+            <p className="text-sm text-slate-500 dark:text-slate-400">
+              Enter your credentials to access your account
+            </p>
           </CardHeader>
-          <CardContent className="px-8 pb-8">
-            <form onSubmit={handleLogin} className="space-y-5">
+          
+          <CardContent className="px-8 pb-8 pt-4">
+            <form onSubmit={handleLogin} className="space-y-6">
+              
+              {/* Error Alert */}
               {error && (
-                <div className="p-3 rounded-lg bg-red-50 dark:bg-red-950/50 border border-red-200 dark:border-red-900 text-red-700 dark:text-red-400 text-sm">
+                <div className="p-3 text-sm rounded-md bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/50 text-red-600 dark:text-red-400 animate-in fade-in slide-in-from-top-2">
                   {error}
                 </div>
               )}
 
               <div className="space-y-4">
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 dark:text-slate-500" />
-                  <Input
-                    type="email"
-                    placeholder="Email address"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="pl-10 h-12 bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 focus:border-[#0a5082] dark:focus:border-blue-500 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 transition-all"
-                    required
-                  />
+                <div className="space-y-2">
+                  <div className="relative group">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 transition-colors group-focus-within:text-[#0a5082] dark:group-focus-within:text-blue-400" />
+                    <Input
+                      type="email"
+                      placeholder="Email address"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="pl-10 h-11 bg-slate-50 dark:bg-slate-950/50 border-slate-200 dark:border-slate-800 focus:ring-2 focus:ring-[#0a5082]/20 dark:focus:ring-blue-500/20 focus:border-[#0a5082] dark:focus:border-blue-500 transition-all"
+                      required
+                    />
+                  </div>
                 </div>
 
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 dark:text-slate-500" />
-                  <Input
-                    type={showPassword ? 'text' : 'password'}
-                    placeholder="Password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="pl-10 pr-10 h-12 bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 focus:border-[#0a5082] dark:focus:border-blue-500 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 transition-all"
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
-                  >
-                    {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                  </button>
+                <div className="space-y-2">
+                  <div className="relative group">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 transition-colors group-focus-within:text-[#0a5082] dark:group-focus-within:text-blue-400" />
+                    <Input
+                      type={showPassword ? 'text' : 'password'}
+                      placeholder="Password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="pl-10 pr-10 h-11 bg-slate-50 dark:bg-slate-950/50 border-slate-200 dark:border-slate-800 focus:ring-2 focus:ring-[#0a5082]/20 dark:focus:ring-blue-500/20 focus:border-[#0a5082] dark:focus:border-blue-500 transition-all"
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors outline-none focus:text-[#0a5082]"
+                    >
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
                 </div>
               </div>
 
-              <div className="flex items-center justify-between">
-                <label className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400 cursor-pointer">
-                  <input type="checkbox" className="rounded border-slate-300 dark:border-slate-600 text-[#0a5082] dark:text-blue-500 focus:ring-[#0a5082] dark:focus:ring-blue-500 dark:bg-slate-800" />
-                  Remember me
+              <div className="flex items-center justify-between text-sm">
+                <label className="flex items-center gap-2 cursor-pointer group">
+                  <div className="relative flex items-center">
+                    <input 
+                      type="checkbox" 
+                      className="peer h-4 w-4 rounded border-slate-300 dark:border-slate-700 text-[#0a5082] focus:ring-[#0a5082] dark:bg-slate-900 dark:checked:bg-blue-600 transition-all" 
+                    />
+                  </div>
+                  <span className="text-slate-500 dark:text-slate-400 group-hover:text-slate-900 dark:group-hover:text-slate-200 transition-colors">Remember me</span>
                 </label>
                 <Link
                   href="/forgot-password"
-                  className="text-sm text-[#0a5082] dark:text-blue-400 hover:text-[#0d6ebd] dark:hover:text-blue-300 font-medium transition-colors"
+                  className="text-[#0a5082] dark:text-blue-400 hover:text-[#084068] dark:hover:text-blue-300 font-medium transition-colors"
                 >
                   Forgot password?
                 </Link>
@@ -149,35 +171,47 @@ export default function LoginPage() {
 
               <Button
                 type="submit"
-                className="w-full h-12 bg-[#0a5082] hover:bg-[#0d6ebd] dark:bg-blue-600 dark:hover:bg-blue-700 text-white font-semibold text-base transition-all duration-200 shadow-lg hover:shadow-xl"
-                size="lg"
-                isLoading={isLoading}
+                className="w-full h-11 bg-[#0a5082] hover:bg-[#084068] dark:bg-blue-600 dark:hover:bg-blue-700 text-white font-semibold transition-all shadow-lg shadow-blue-900/10 hover:shadow-blue-900/20"
+                disabled={isLoading}
               >
-                Sign In
+                {isLoading ? (
+                  <div className="flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span>Signing in...</span>
+                  </div>
+                ) : (
+                  'Sign In'
+                )}
               </Button>
+            </form>
 
-              <div className="relative my-6">
+            <div className="mt-6">
+              <div className="relative">
                 <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-slate-200 dark:border-slate-700"></div>
+                  <span className="w-full border-t border-slate-200 dark:border-slate-800" />
                 </div>
                 <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-white dark:bg-slate-900 px-2 text-slate-400 dark:text-slate-500">or</span>
+                  <span className="bg-white dark:bg-slate-900 px-2 text-slate-500 dark:text-slate-500">
+                    New here?
+                  </span>
                 </div>
               </div>
 
-              <p className="text-center text-sm text-slate-600 dark:text-slate-400">
-                Don&apos;t have an account?{' '}
-                <Link href="/register" className="text-[#0a5082] dark:text-blue-400 font-semibold hover:text-[#0d6ebd] dark:hover:text-blue-300 transition-colors">
-                  Contact Admin
+              <div className="mt-6 text-center">
+                <Link 
+                  href="/register" 
+                  className="text-sm text-slate-600 dark:text-slate-400 hover:text-[#0a5082] dark:hover:text-blue-400 font-medium transition-colors inline-flex items-center gap-1 group"
+                >
+                  Contact Administrator 
+                  <span className="group-hover:translate-x-0.5 transition-transform">→</span>
                 </Link>
-              </p>
-            </form>
+              </div>
+            </div>
           </CardContent>
         </Card>
 
-        {/* Footer */}
-        <p className="text-center text-sm text-slate-600 dark:text-slate-400 mt-8">
-          &copy; {new Date().getFullYear()} {companyName}. All rights reserved.
+        <p className="text-center text-xs text-slate-400 dark:text-slate-600 mt-8">
+          &copy; {new Date().getFullYear()} {companyName || 'Company'}. All rights reserved.
         </p>
       </div>
     </div>
