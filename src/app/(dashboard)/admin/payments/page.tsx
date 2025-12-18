@@ -7,7 +7,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Modal } from '@/components/ui/modal';
 import { StatCard } from '@/components/ui/stat-card';
@@ -15,6 +14,7 @@ import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '@
 import { Progress } from '@/components/ui/progress';
 import { EmptyState } from '@/components/ui/empty-state';
 import { PasswordConfirmModal } from '@/components/ui/password-confirm-modal';
+import { ClientPaymentForm, ClientPaymentFormData } from '@/components/forms/client-payment-form';
 import { useCompanySettings } from '@/hooks/use-company-settings';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import {
@@ -112,18 +112,7 @@ export default function PaymentsPage() {
   const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null);
   const [selectedProjectForInvoice, setSelectedProjectForInvoice] = useState<ProjectWithPayments | null>(null);
   const invoiceRef = useRef<HTMLDivElement>(null);
-
-  const [paymentForm, setPaymentForm] = useState({
-    project_id: '',
-    amount: '',
-    payment_date: new Date().toISOString().split('T')[0],
-    due_date: '',
-    status: 'pending' as PaymentStatus,
-    payment_method: 'bank_transfer' as PaymentMethod,
-    reference_number: '',
-    invoice_number: '',
-    description: '',
-  });
+  const [preselectedProjectId, setPreselectedProjectId] = useState<string>('');
 
   const supabase = createClient();
   const { companyName, logoUrl, companyEmail, companyPhone, companyAddress } = useCompanySettings();
@@ -371,39 +360,24 @@ export default function PaymentsPage() {
     setExpandedProjects(newExpanded);
   };
 
-  const resetPaymentForm = () => {
-    setPaymentForm({
-      project_id: '',
-      amount: '',
-      payment_date: new Date().toISOString().split('T')[0],
-      due_date: '',
-      status: 'pending',
-      payment_method: 'bank_transfer',
-      reference_number: '',
-      invoice_number: '',
-      description: '',
-    });
-  };
-
-  const handleAddPayment = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleAddPayment = async (formData: ClientPaymentFormData) => {
     try {
-      const invoiceNumber = paymentForm.invoice_number || generateInvoiceNumber(payments);
+      const invoiceNumber = formData.invoice_number || generateInvoiceNumber(payments);
 
       await savePayment({
-        project_id: paymentForm.project_id,
-        amount: parseFloat(paymentForm.amount),
-        payment_date: paymentForm.payment_date,
-        due_date: paymentForm.due_date || undefined,
-        status: paymentForm.status,
-        payment_method: paymentForm.payment_method,
-        reference_number: paymentForm.reference_number || undefined,
+        project_id: formData.project_id,
+        amount: parseFloat(formData.amount),
+        payment_date: formData.payment_date,
+        due_date: formData.due_date || undefined,
+        status: formData.status,
+        payment_method: formData.payment_method,
+        reference_number: formData.reference_number || undefined,
         invoice_number: invoiceNumber,
-        description: paymentForm.description || undefined,
+        description: formData.description || undefined,
       });
 
       setShowAddModal(false);
-      resetPaymentForm();
+      setPreselectedProjectId('');
       fetchData();
     } catch (error) {
       console.error('Error adding payment:', error);
@@ -413,42 +387,29 @@ export default function PaymentsPage() {
 
   const handleEditClick = (payment: Payment) => {
     setEditingPayment(payment);
-    setPaymentForm({
-      project_id: payment.project_id,
-      amount: payment.amount.toString(),
-      payment_date: payment.payment_date,
-      due_date: payment.due_date || '',
-      status: payment.status,
-      payment_method: payment.payment_method || 'bank_transfer',
-      reference_number: payment.reference_number || '',
-      invoice_number: payment.invoice_number,
-      description: payment.description || '',
-    });
     setShowEditModal(true);
   };
 
-  const handleUpdatePayment = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleUpdatePayment = async (formData: ClientPaymentFormData) => {
     if (!editingPayment) return;
 
     try {
       await savePayment({
         id: editingPayment.id,
-        project_id: paymentForm.project_id,
-        amount: parseFloat(paymentForm.amount),
-        payment_date: paymentForm.payment_date,
-        due_date: paymentForm.due_date || undefined,
-        status: paymentForm.status,
-        payment_method: paymentForm.payment_method,
-        reference_number: paymentForm.reference_number || undefined,
-        invoice_number: paymentForm.invoice_number,
-        description: paymentForm.description || undefined,
+        project_id: formData.project_id,
+        amount: parseFloat(formData.amount),
+        payment_date: formData.payment_date,
+        due_date: formData.due_date || undefined,
+        status: formData.status,
+        payment_method: formData.payment_method,
+        reference_number: formData.reference_number || undefined,
+        invoice_number: formData.invoice_number,
+        description: formData.description || undefined,
         created_at: editingPayment.created_at,
       });
 
       setShowEditModal(false);
       setEditingPayment(null);
-      resetPaymentForm();
       fetchData();
     } catch (error) {
       console.error('Error updating payment:', error);
@@ -1062,120 +1023,36 @@ export default function PaymentsPage() {
     printWindow.document.close();
   };
 
-  // Payment Form Component (reusable for add and edit)
-  const PaymentFormContent = ({ isEdit = false }: { isEdit?: boolean }) => (
-    <form onSubmit={isEdit ? handleUpdatePayment : handleAddPayment} className="space-y-4">
-      <Select
-        label="Project"
-        value={paymentForm.project_id}
-        onChange={(e) => setPaymentForm({ ...paymentForm, project_id: e.target.value })}
-        options={[
-          { value: '', label: 'Select a project' },
-          ...projects.map(p => ({ value: p.id, label: `${p.name}${p.client_name ? ` - ${p.client_name}` : ''}` })),
-        ]}
-        required
-        disabled={isEdit}
-      />
+  // Memoized project options for forms (stable reference)
+  const projectOptions = useMemo(() => [
+    { value: '', label: 'Select a project' },
+    ...projects.map(p => ({ value: p.id, label: `${p.name}${p.client_name ? ` - ${p.client_name}` : ''}` })),
+  ], [projects]);
 
-      <div className="grid grid-cols-2 gap-4">
-        <Input
-          label="Amount (AED)"
-          type="number"
-          value={paymentForm.amount}
-          onChange={(e) => setPaymentForm({ ...paymentForm, amount: e.target.value })}
-          min="0"
-          step="0.01"
-          required
-        />
-        <Select
-          label="Status"
-          value={paymentForm.status}
-          onChange={(e) => setPaymentForm({ ...paymentForm, status: e.target.value as PaymentStatus })}
-          options={[
-            { value: 'pending', label: 'Pending' },
-            { value: 'paid', label: 'Paid' },
-            { value: 'partial', label: 'Partial' },
-            { value: 'overdue', label: 'Overdue' },
-          ]}
-        />
-      </div>
+  // Get next invoice number (memoized)
+  const nextInvoiceNumber = useMemo(() => generateInvoiceNumber(payments), [payments]);
 
-      <div className="grid grid-cols-2 gap-4">
-        <Input
-          label="Payment Date"
-          type="date"
-          value={paymentForm.payment_date}
-          onChange={(e) => setPaymentForm({ ...paymentForm, payment_date: e.target.value })}
-          required
-        />
-        <Input
-          label="Due Date (optional)"
-          type="date"
-          value={paymentForm.due_date}
-          onChange={(e) => setPaymentForm({ ...paymentForm, due_date: e.target.value })}
-        />
-      </div>
+  // Get initial data for edit form (memoized)
+  const editFormInitialData = useMemo(() => {
+    if (!editingPayment) return undefined;
+    return {
+      project_id: editingPayment.project_id,
+      amount: editingPayment.amount.toString(),
+      payment_date: editingPayment.payment_date,
+      due_date: editingPayment.due_date || '',
+      status: editingPayment.status,
+      payment_method: editingPayment.payment_method || 'bank_transfer',
+      reference_number: editingPayment.reference_number || '',
+      invoice_number: editingPayment.invoice_number,
+      description: editingPayment.description || '',
+    };
+  }, [editingPayment]);
 
-      <div className="grid grid-cols-2 gap-4">
-        <Select
-          label="Payment Method"
-          value={paymentForm.payment_method}
-          onChange={(e) => setPaymentForm({ ...paymentForm, payment_method: e.target.value as PaymentMethod })}
-          options={[
-            { value: 'bank_transfer', label: 'Bank Transfer' },
-            { value: 'cash', label: 'Cash' },
-            { value: 'cheque', label: 'Cheque' },
-            { value: 'credit_card', label: 'Credit Card' },
-            { value: 'other', label: 'Other' },
-          ]}
-        />
-        <Input
-          label={isEdit ? "Invoice Number" : "Invoice Number (auto-generated if empty)"}
-          value={paymentForm.invoice_number}
-          onChange={(e) => setPaymentForm({ ...paymentForm, invoice_number: e.target.value })}
-          placeholder={isEdit ? '' : `Next: ${generateInvoiceNumber(payments)}`}
-          disabled={isEdit}
-        />
-      </div>
-
-      <Input
-        label="Reference Number"
-        value={paymentForm.reference_number}
-        onChange={(e) => setPaymentForm({ ...paymentForm, reference_number: e.target.value })}
-        placeholder="Transaction reference"
-      />
-
-      <Textarea
-        label="Description"
-        value={paymentForm.description}
-        onChange={(e) => setPaymentForm({ ...paymentForm, description: e.target.value })}
-        placeholder="Payment details or notes..."
-        rows={2}
-      />
-
-      <div className="flex justify-end gap-3 pt-4">
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => {
-            if (isEdit) {
-              setShowEditModal(false);
-              setEditingPayment(null);
-            } else {
-              setShowAddModal(false);
-            }
-            resetPaymentForm();
-          }}
-        >
-          Cancel
-        </Button>
-        <Button type="submit">
-          {isEdit ? <Edit className="h-4 w-4 mr-2" /> : <Receipt className="h-4 w-4 mr-2" />}
-          {isEdit ? 'Update Payment' : 'Record Payment'}
-        </Button>
-      </div>
-    </form>
-  );
+  // Get initial data for add form (memoized)
+  const addFormInitialData = useMemo(() => {
+    if (!preselectedProjectId) return undefined;
+    return { project_id: preselectedProjectId };
+  }, [preselectedProjectId]);
 
   if (isLoading) {
     return (
@@ -1605,7 +1482,7 @@ export default function PaymentsPage() {
                           size="sm"
                           onClick={(e) => {
                             e.stopPropagation();
-                            setPaymentForm({ ...paymentForm, project_id: project.id });
+                            setPreselectedProjectId(project.id);
                             setShowAddModal(true);
                           }}
                         >
@@ -1627,13 +1504,23 @@ export default function PaymentsPage() {
         isOpen={showAddModal}
         onClose={() => {
           setShowAddModal(false);
-          resetPaymentForm();
+          setPreselectedProjectId('');
         }}
         title="Record Payment"
         description="Add a new payment record for a project"
         size="lg"
       >
-        <PaymentFormContent isEdit={false} />
+        <ClientPaymentForm
+          initialData={addFormInitialData}
+          projects={projectOptions}
+          isEdit={false}
+          nextInvoiceNumber={nextInvoiceNumber}
+          onSubmit={handleAddPayment}
+          onCancel={() => {
+            setShowAddModal(false);
+            setPreselectedProjectId('');
+          }}
+        />
       </Modal>
 
       {/* Edit Payment Modal */}
@@ -1642,13 +1529,22 @@ export default function PaymentsPage() {
         onClose={() => {
           setShowEditModal(false);
           setEditingPayment(null);
-          resetPaymentForm();
         }}
         title="Edit Payment"
         description="Update payment details"
         size="lg"
       >
-        <PaymentFormContent isEdit={true} />
+        <ClientPaymentForm
+          initialData={editFormInitialData}
+          projects={projectOptions}
+          isEdit={true}
+          nextInvoiceNumber={nextInvoiceNumber}
+          onSubmit={handleUpdatePayment}
+          onCancel={() => {
+            setShowEditModal(false);
+            setEditingPayment(null);
+          }}
+        />
       </Modal>
 
       {/* Invoice Preview Modal */}

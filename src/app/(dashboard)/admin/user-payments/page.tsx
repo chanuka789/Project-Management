@@ -1,19 +1,19 @@
 'use client';
 
-import { useEffect, useState, useMemo, useCallback } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { DashboardLayout } from '@/components/layout/dashboard-layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Modal } from '@/components/ui/modal';
 import { StatCard } from '@/components/ui/stat-card';
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '@/components/ui/table';
 import { EmptyState } from '@/components/ui/empty-state';
 import { PasswordConfirmModal } from '@/components/ui/password-confirm-modal';
+import { PaymentForm, PaymentFormData } from '@/components/forms/payment-form';
 import { useCompanySettings } from '@/hooks/use-company-settings';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { formatCurrencyWithCode, getCurrencyInfo, SUPPORTED_CURRENCIES, DEFAULT_EXCHANGE_RATES, convertToAED } from '@/lib/currency';
@@ -63,19 +63,7 @@ export default function UserPaymentsPage() {
   const [expandedUsers, setExpandedUsers] = useState<Set<string>>(new Set());
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [paymentToDelete, setPaymentToDelete] = useState<UserPayment | null>(null);
-
-  const [paymentForm, setPaymentForm] = useState({
-    user_id: '',
-    project_id: '',
-    amount: '',
-    currency: 'AED' as SupportedCurrency,
-    payment_date: new Date().toISOString().split('T')[0],
-    payment_type: 'salary' as UserPaymentType,
-    payment_method: 'bank_transfer' as PaymentMethod,
-    reference_number: '',
-    description: '',
-    status: 'completed' as UserPaymentStatus,
-  });
+  const [preselectedUserId, setPreselectedUserId] = useState<string>('');
 
   const supabase = createClient();
   const { companyName, logoUrl } = useCompanySettings();
@@ -316,48 +304,32 @@ export default function UserPaymentsPage() {
     setExpandedUsers(newExpanded);
   };
 
-  const resetPaymentForm = () => {
-    setPaymentForm({
-      user_id: '',
-      project_id: '',
-      amount: '',
-      currency: 'AED',
-      payment_date: new Date().toISOString().split('T')[0],
-      payment_type: 'salary',
-      payment_method: 'bank_transfer',
-      reference_number: '',
-      description: '',
-      status: 'completed',
-    });
-  };
-
-  const handleAddPayment = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleAddPayment = async (formData: PaymentFormData) => {
     try {
-      const amount = parseFloat(paymentForm.amount);
-      const exchangeRate = DEFAULT_EXCHANGE_RATES[paymentForm.currency];
-      const amountAed = paymentForm.currency === 'AED'
+      const amount = parseFloat(formData.amount);
+      const exchangeRate = DEFAULT_EXCHANGE_RATES[formData.currency];
+      const amountAed = formData.currency === 'AED'
         ? amount
-        : convertToAED(amount, paymentForm.currency, exchangeRate);
+        : convertToAED(amount, formData.currency, exchangeRate);
 
       await savePayment({
-        user_id: paymentForm.user_id,
-        project_id: paymentForm.project_id || undefined,
+        user_id: formData.user_id,
+        project_id: formData.project_id || undefined,
         amount: amount,
         amount_aed: amountAed,
-        currency: paymentForm.currency,
+        currency: formData.currency,
         exchange_rate: exchangeRate,
         exchange_rate_date: new Date().toISOString().split('T')[0],
-        payment_date: paymentForm.payment_date,
-        payment_type: paymentForm.payment_type,
-        payment_method: paymentForm.payment_method,
-        reference_number: paymentForm.reference_number || undefined,
-        description: paymentForm.description || undefined,
-        status: paymentForm.status,
+        payment_date: formData.payment_date,
+        payment_type: formData.payment_type,
+        payment_method: formData.payment_method,
+        reference_number: formData.reference_number || undefined,
+        description: formData.description || undefined,
+        status: formData.status,
       });
 
       setShowAddModal(false);
-      resetPaymentForm();
+      setPreselectedUserId('');
       fetchData();
     } catch (error) {
       console.error('Error adding payment:', error);
@@ -367,53 +339,39 @@ export default function UserPaymentsPage() {
 
   const handleEditClick = (payment: UserPayment) => {
     setEditingPayment(payment);
-    setPaymentForm({
-      user_id: payment.user_id,
-      project_id: payment.project_id || '',
-      amount: payment.amount.toString(),
-      currency: payment.currency || 'AED',
-      payment_date: payment.payment_date,
-      payment_type: payment.payment_type,
-      payment_method: payment.payment_method || 'bank_transfer',
-      reference_number: payment.reference_number || '',
-      description: payment.description || '',
-      status: payment.status,
-    });
     setShowEditModal(true);
   };
 
-  const handleUpdatePayment = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleUpdatePayment = async (formData: PaymentFormData) => {
     if (!editingPayment) return;
 
     try {
-      const amount = parseFloat(paymentForm.amount);
-      const exchangeRate = DEFAULT_EXCHANGE_RATES[paymentForm.currency];
-      const amountAed = paymentForm.currency === 'AED'
+      const amount = parseFloat(formData.amount);
+      const exchangeRate = DEFAULT_EXCHANGE_RATES[formData.currency];
+      const amountAed = formData.currency === 'AED'
         ? amount
-        : convertToAED(amount, paymentForm.currency, exchangeRate);
+        : convertToAED(amount, formData.currency, exchangeRate);
 
       await savePayment({
         id: editingPayment.id,
-        user_id: paymentForm.user_id,
-        project_id: paymentForm.project_id || undefined,
+        user_id: formData.user_id,
+        project_id: formData.project_id || undefined,
         amount: amount,
         amount_aed: amountAed,
-        currency: paymentForm.currency,
+        currency: formData.currency,
         exchange_rate: exchangeRate,
         exchange_rate_date: new Date().toISOString().split('T')[0],
-        payment_date: paymentForm.payment_date,
-        payment_type: paymentForm.payment_type,
-        payment_method: paymentForm.payment_method,
-        reference_number: paymentForm.reference_number || undefined,
-        description: paymentForm.description || undefined,
-        status: paymentForm.status,
+        payment_date: formData.payment_date,
+        payment_type: formData.payment_type,
+        payment_method: formData.payment_method,
+        reference_number: formData.reference_number || undefined,
+        description: formData.description || undefined,
+        status: formData.status,
         created_at: editingPayment.created_at,
       });
 
       setShowEditModal(false);
       setEditingPayment(null);
-      resetPaymentForm();
       fetchData();
     } catch (error) {
       console.error('Error updating payment:', error);
@@ -477,168 +435,40 @@ export default function UserPaymentsPage() {
     }
   };
 
-  // Memoized user options for forms
+  // Memoized user options for forms (stable reference)
   const userOptions = useMemo(() => [
     { value: '', label: 'Select a team member' },
     ...users.map(u => ({ value: u.id, label: `${u.full_name} (${u.email})` })),
   ], [users]);
 
-  // Memoized project options for forms
+  // Memoized project options for forms (stable reference)
   const projectOptions = useMemo(() => [
     { value: '', label: 'No specific project' },
     ...projects.map(p => ({ value: p.id, label: p.name })),
   ], [projects]);
 
-  // Memoized currency options
-  const currencyOptions = useMemo(() => SUPPORTED_CURRENCIES.map(c => ({
-    value: c.code,
-    label: `${c.flag} ${c.code}`
-  })), []);
+  // Get initial data for edit form (memoized)
+  const editFormInitialData = useMemo(() => {
+    if (!editingPayment) return undefined;
+    return {
+      user_id: editingPayment.user_id,
+      project_id: editingPayment.project_id || '',
+      amount: editingPayment.amount.toString(),
+      currency: editingPayment.currency || 'AED',
+      payment_date: editingPayment.payment_date,
+      payment_type: editingPayment.payment_type,
+      payment_method: editingPayment.payment_method || 'bank_transfer',
+      reference_number: editingPayment.reference_number || '',
+      description: editingPayment.description || '',
+      status: editingPayment.status,
+    };
+  }, [editingPayment]);
 
-  // Form field change handlers (memoized to prevent rerenders)
-  const handleFormChange = useCallback((field: string, value: string) => {
-    setPaymentForm(prev => ({ ...prev, [field]: value }));
-  }, []);
-
-  // Payment Form Component (memoized)
-  const PaymentFormContent = useCallback(({ isEdit = false }: { isEdit?: boolean }) => (
-    <form onSubmit={isEdit ? handleUpdatePayment : handleAddPayment} className="space-y-4">
-      <Select
-        label="Team Member"
-        value={paymentForm.user_id}
-        onChange={(e) => handleFormChange('user_id', e.target.value)}
-        options={userOptions}
-        required
-        disabled={isEdit}
-      />
-
-      <Select
-        label="Project (Optional)"
-        value={paymentForm.project_id}
-        onChange={(e) => handleFormChange('project_id', e.target.value)}
-        options={projectOptions}
-      />
-
-      <div className="grid grid-cols-3 gap-4">
-        <Select
-          label="Currency"
-          value={paymentForm.currency}
-          onChange={(e) => handleFormChange('currency', e.target.value)}
-          options={currencyOptions}
-        />
-        <Input
-          label={`Amount (${paymentForm.currency})`}
-          type="number"
-          value={paymentForm.amount}
-          onChange={(e) => handleFormChange('amount', e.target.value)}
-          min="0"
-          step="0.01"
-          required
-          className="col-span-2"
-        />
-      </div>
-
-      {/* AED Equivalent Preview */}
-      {paymentForm.currency !== 'AED' && paymentForm.amount && (
-        <div className="bg-primary-50 dark:bg-primary-900/20 border border-primary-200 dark:border-primary-800 rounded-lg p-3">
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">AED Equivalent:</span>
-            <span className="font-semibold text-primary">
-              {formatCurrencyWithCode(
-                convertToAED(parseFloat(paymentForm.amount) || 0, paymentForm.currency, DEFAULT_EXCHANGE_RATES[paymentForm.currency]),
-                'AED'
-              )}
-            </span>
-          </div>
-        </div>
-      )}
-
-      <div className="grid grid-cols-2 gap-4">
-        <Select
-          label="Payment Type"
-          value={paymentForm.payment_type}
-          onChange={(e) => handleFormChange('payment_type', e.target.value)}
-          options={[
-            { value: 'salary', label: 'Salary' },
-            { value: 'bonus', label: 'Bonus' },
-            { value: 'reimbursement', label: 'Reimbursement' },
-            { value: 'advance', label: 'Advance' },
-            { value: 'commission', label: 'Commission' },
-            { value: 'other', label: 'Other' },
-          ]}
-        />
-        <Select
-          label="Status"
-          value={paymentForm.status}
-          onChange={(e) => handleFormChange('status', e.target.value)}
-          options={[
-            { value: 'completed', label: 'Completed' },
-            { value: 'pending', label: 'Pending' },
-            { value: 'cancelled', label: 'Cancelled' },
-          ]}
-        />
-      </div>
-
-      <div className="grid grid-cols-2 gap-4">
-        <Input
-          label="Payment Date"
-          type="date"
-          value={paymentForm.payment_date}
-          onChange={(e) => handleFormChange('payment_date', e.target.value)}
-          required
-        />
-        <Select
-          label="Payment Method"
-          value={paymentForm.payment_method}
-          onChange={(e) => handleFormChange('payment_method', e.target.value)}
-          options={[
-            { value: 'bank_transfer', label: 'Bank Transfer' },
-            { value: 'cash', label: 'Cash' },
-            { value: 'cheque', label: 'Cheque' },
-            { value: 'credit_card', label: 'Credit Card' },
-            { value: 'other', label: 'Other' },
-          ]}
-        />
-      </div>
-
-      <Input
-        label="Reference Number"
-        value={paymentForm.reference_number}
-        onChange={(e) => handleFormChange('reference_number', e.target.value)}
-        placeholder="Transaction reference"
-      />
-
-      <Textarea
-        label="Description"
-        value={paymentForm.description}
-        onChange={(e) => handleFormChange('description', e.target.value)}
-        placeholder="Payment details or notes..."
-        rows={2}
-      />
-
-      <div className="flex justify-end gap-3 pt-4">
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => {
-            if (isEdit) {
-              setShowEditModal(false);
-              setEditingPayment(null);
-            } else {
-              setShowAddModal(false);
-            }
-            resetPaymentForm();
-          }}
-        >
-          Cancel
-        </Button>
-        <Button type="submit">
-          {isEdit ? <Edit className="h-4 w-4 mr-2" /> : <Wallet className="h-4 w-4 mr-2" />}
-          {isEdit ? 'Update Payment' : 'Issue Payment'}
-        </Button>
-      </div>
-    </form>
-  ), [paymentForm, userOptions, projectOptions, currencyOptions, handleFormChange, handleAddPayment, handleUpdatePayment, resetPaymentForm, setShowAddModal, setShowEditModal, setEditingPayment]);
+  // Get initial data for add form (memoized)
+  const addFormInitialData = useMemo(() => {
+    if (!preselectedUserId) return undefined;
+    return { user_id: preselectedUserId };
+  }, [preselectedUserId]);
 
   if (isLoading) {
     return (
@@ -1003,7 +833,7 @@ export default function UserPaymentsPage() {
                           size="sm"
                           onClick={(e) => {
                             e.stopPropagation();
-                            setPaymentForm({ ...paymentForm, user_id: u.id });
+                            setPreselectedUserId(u.id);
                             setShowAddModal(true);
                           }}
                         >
@@ -1025,13 +855,23 @@ export default function UserPaymentsPage() {
         isOpen={showAddModal}
         onClose={() => {
           setShowAddModal(false);
-          resetPaymentForm();
+          setPreselectedUserId('');
         }}
         title="Issue Payment"
         description="Record a payment issued to a team member"
         size="lg"
       >
-        <PaymentFormContent isEdit={false} />
+        <PaymentForm
+          initialData={addFormInitialData}
+          users={userOptions}
+          projects={projectOptions}
+          isEdit={false}
+          onSubmit={handleAddPayment}
+          onCancel={() => {
+            setShowAddModal(false);
+            setPreselectedUserId('');
+          }}
+        />
       </Modal>
 
       {/* Edit Payment Modal */}
@@ -1040,13 +880,22 @@ export default function UserPaymentsPage() {
         onClose={() => {
           setShowEditModal(false);
           setEditingPayment(null);
-          resetPaymentForm();
         }}
         title="Edit Payment"
         description="Update payment details"
         size="lg"
       >
-        <PaymentFormContent isEdit={true} />
+        <PaymentForm
+          initialData={editFormInitialData}
+          users={userOptions}
+          projects={projectOptions}
+          isEdit={true}
+          onSubmit={handleUpdatePayment}
+          onCancel={() => {
+            setShowEditModal(false);
+            setEditingPayment(null);
+          }}
+        />
       </Modal>
 
       {/* Delete Confirmation Modal */}
