@@ -29,6 +29,7 @@ interface PaymentFormProps {
   isEdit?: boolean;
   onSubmit: (data: PaymentFormData) => void;
   onCancel: () => void;
+  onUserChange?: (userId: string) => void;
 }
 
 // This component manages its own form state to prevent parent re-renders on typing
@@ -39,6 +40,7 @@ const PaymentFormComponent = ({
   isEdit = false,
   onSubmit,
   onCancel,
+  onUserChange,
 }: PaymentFormProps) => {
   // Local form state - changes here don't affect parent component
   const [formState, setFormState] = useState<PaymentFormData>({
@@ -73,7 +75,16 @@ const PaymentFormComponent = ({
   }, [initialData?.user_id, initialData?.project_id, initialData?.amount]);
 
   const handleChange = (field: keyof PaymentFormData, value: string) => {
-    setFormState(prev => ({ ...prev, [field]: value }));
+    if (field === 'user_id') {
+      // Reset project when user changes
+      setFormState(prev => ({ ...prev, [field]: value, project_id: '' }));
+      // Notify parent about user change
+      if (onUserChange) {
+        onUserChange(value);
+      }
+    } else {
+      setFormState(prev => ({ ...prev, [field]: value }));
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {

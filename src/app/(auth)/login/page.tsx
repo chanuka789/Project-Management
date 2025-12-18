@@ -3,10 +3,12 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { useCompanySettings } from '@/hooks/use-company-settings';
 import { Mail, Lock, Building2 } from 'lucide-react';
 
 export default function LoginPage() {
@@ -16,6 +18,7 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const supabase = createClient();
+  const { companyName, logoUrl } = useCompanySettings();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -68,11 +71,23 @@ export default function LoginPage() {
         {/* Logo */}
         <div className="flex justify-center mb-6 sm:mb-8">
           <div className="flex items-center gap-3">
-            <div className="h-12 w-12 sm:h-14 sm:w-14 rounded-xl gradient-primary flex items-center justify-center shadow-lg">
-              <Building2 className="h-6 w-6 sm:h-8 sm:w-8 text-white" />
-            </div>
+            {logoUrl ? (
+              <div className="h-12 w-12 sm:h-14 sm:w-14 rounded-xl overflow-hidden shadow-lg">
+                <Image
+                  src={logoUrl}
+                  alt={companyName}
+                  width={56}
+                  height={56}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+            ) : (
+              <div className="h-12 w-12 sm:h-14 sm:w-14 rounded-xl gradient-primary flex items-center justify-center shadow-lg">
+                <Building2 className="h-6 w-6 sm:h-8 sm:w-8 text-white" />
+              </div>
+            )}
             <div>
-              <h1 className="text-xl sm:text-2xl font-bold text-primary">QS Consultancy</h1>
+              <h1 className="text-xl sm:text-2xl font-bold text-primary">{companyName}</h1>
               <p className="text-xs sm:text-sm text-muted-foreground">Project Management System</p>
             </div>
           </div>
@@ -150,7 +165,7 @@ export default function LoginPage() {
         </Card>
 
         <p className="text-center text-xs text-muted-foreground mt-6">
-          &copy; {new Date().getFullYear()} QS Consultancy. All rights reserved.
+          &copy; {new Date().getFullYear()} {companyName}. All rights reserved.
         </p>
       </div>
     </div>

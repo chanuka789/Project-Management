@@ -3,10 +3,12 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { useCompanySettings } from '@/hooks/use-company-settings';
 import { Mail, User, Phone, MapPin, Building2, KeyRound, ArrowLeft, CheckCircle2 } from 'lucide-react';
 
 type RegistrationStep = 'email' | 'verify' | 'profile' | 'success';
@@ -24,6 +26,7 @@ export default function RegisterPage() {
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const supabase = createClient();
+  const { companyName, logoUrl } = useCompanySettings();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -186,11 +189,23 @@ export default function RegisterPage() {
         {/* Logo */}
         <div className="flex justify-center mb-8">
           <div className="flex items-center gap-3">
-            <div className="h-14 w-14 rounded-xl bg-gradient-to-br from-[#0a5082] to-[#063a5e] flex items-center justify-center shadow-lg">
-              <Building2 className="h-8 w-8 text-white" />
-            </div>
+            {logoUrl ? (
+              <div className="h-14 w-14 rounded-xl overflow-hidden shadow-lg">
+                <Image
+                  src={logoUrl}
+                  alt={companyName}
+                  width={56}
+                  height={56}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+            ) : (
+              <div className="h-14 w-14 rounded-xl bg-gradient-to-br from-[#0a5082] to-[#063a5e] flex items-center justify-center shadow-lg">
+                <Building2 className="h-8 w-8 text-white" />
+              </div>
+            )}
             <div>
-              <h1 className="text-2xl font-bold text-[#0a5082]">QS Global Solutions</h1>
+              <h1 className="text-2xl font-bold text-[#0a5082]">{companyName}</h1>
               <p className="text-sm text-gray-500">Project Management System</p>
             </div>
           </div>
@@ -426,7 +441,7 @@ export default function RegisterPage() {
         </Card>
 
         <p className="text-center text-xs text-gray-400 mt-6">
-          &copy; {new Date().getFullYear()} QS Global Solutions. All rights reserved.
+          &copy; {new Date().getFullYear()} {companyName}. All rights reserved.
         </p>
       </div>
     </div>
