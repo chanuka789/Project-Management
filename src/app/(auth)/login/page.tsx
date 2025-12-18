@@ -75,17 +75,12 @@ export default function LoginPage() {
         {/* Brand / Logo Section */}
         <div className="flex flex-col items-center mb-8">
           {logoUrl ? (
-            <div className="relative group">
-              <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 to-[#0a5082] rounded-full blur opacity-25 group-hover:opacity-50 transition duration-1000 group-hover:duration-200" />
-              <div className="relative h-20 w-20 bg-white dark:bg-slate-900 rounded-2xl flex items-center justify-center shadow-xl border border-slate-100 dark:border-slate-800">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={logoUrl}
-                  alt={companyName}
-                  className="h-12 w-auto object-contain p-2"
-                />
-              </div>
-            </div>
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img
+              src={logoUrl}
+              alt={companyName}
+              className="h-16 w-auto object-contain"
+            />
           ) : (
             <div className="h-16 w-16 bg-gradient-to-br from-[#0a5082] to-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-900/20">
               <Building2 className="h-8 w-8 text-white" />
