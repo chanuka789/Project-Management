@@ -271,7 +271,7 @@ export default function RegisterPage() {
                 </div>
                 <CardTitle className="text-2xl">Verify Your Email</CardTitle>
                 <CardDescription>
-                  We sent a 6-digit code to{' '}
+                  We sent an 8-digit code to{' '}
                   <span className="font-medium text-[#0a5082]">{formData.email}</span>
                 </CardDescription>
               </CardHeader>
@@ -288,11 +288,11 @@ export default function RegisterPage() {
                     <Input
                       type="text"
                       name="otp"
-                      placeholder="Enter 6-digit code"
+                      placeholder="Enter 8-digit code"
                       value={formData.otp}
                       onChange={handleChange}
                       className="pl-10 text-center text-xl tracking-widest font-mono"
-                      maxLength={6}
+                      maxLength={8}
                       required
                     />
                   </div>
