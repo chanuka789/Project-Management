@@ -36,6 +36,8 @@ export async function updateSession(request: NextRequest) {
   // Protected routes
   const isAuthPage = request.nextUrl.pathname.startsWith('/login') ||
                      request.nextUrl.pathname.startsWith('/register');
+  const isPasswordPage = request.nextUrl.pathname.startsWith('/reset-password') ||
+                         request.nextUrl.pathname.startsWith('/forgot-password');
   const isDashboardPage = request.nextUrl.pathname.startsWith('/admin') ||
                           request.nextUrl.pathname.startsWith('/user');
 
@@ -43,6 +45,11 @@ export async function updateSession(request: NextRequest) {
     const url = request.nextUrl.clone();
     url.pathname = '/login';
     return NextResponse.redirect(url);
+  }
+
+  // Allow access to password reset pages even when authenticated
+  if (isPasswordPage) {
+    return supabaseResponse;
   }
 
   if (user && isAuthPage) {
