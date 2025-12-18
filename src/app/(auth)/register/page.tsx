@@ -36,10 +36,14 @@ export default function RegisterPage() {
     setIsLoading(true);
 
     try {
+      // Get the base URL for redirects
+      const redirectUrl = `${window.location.origin}/auth/callback`;
+
       // Sign up with email OTP (magic link)
       const { error: signUpError } = await supabase.auth.signInWithOtp({
         email: formData.email,
         options: {
+          emailRedirectTo: redirectUrl,
           data: {
             full_name: formData.fullName,
           },
@@ -151,9 +155,13 @@ export default function RegisterPage() {
     setIsLoading(true);
 
     try {
+      // Get the base URL for redirects
+      const redirectUrl = `${window.location.origin}/auth/callback`;
+
       const { error } = await supabase.auth.signInWithOtp({
         email: formData.email,
         options: {
+          emailRedirectTo: redirectUrl,
           data: {
             full_name: formData.fullName,
           },
