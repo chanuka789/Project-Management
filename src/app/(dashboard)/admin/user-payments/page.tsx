@@ -40,7 +40,7 @@ import {
   CircleDollarSign,
   UserCheck,
 } from 'lucide-react';
-import type { User, Project, PaymentMethod, SupportedCurrency, UserPayment, UserPaymentType, UserPaymentStatus } from '@/types/database';
+import type { User, Project, PaymentMethod, SupportedCurrency, UserPayment, UserPaymentType, UserPaymentStatus, ProjectUser } from '@/types/database';
 
 interface UserWithPayments extends User {
   payments: UserPayment[];
@@ -53,6 +53,7 @@ export default function UserPaymentsPage() {
   const [user, setUser] = useState<User | null>(null);
   const [users, setUsers] = useState<UserWithPayments[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
+  const [projectUsers, setProjectUsers] = useState<ProjectUser[]>([]);
   const [payments, setPayments] = useState<UserPayment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -64,6 +65,7 @@ export default function UserPaymentsPage() {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [paymentToDelete, setPaymentToDelete] = useState<UserPayment | null>(null);
   const [preselectedUserId, setPreselectedUserId] = useState<string>('');
+  const [selectedUserForPayment, setSelectedUserForPayment] = useState<string>('');
 
   const supabase = createClient();
   const { companyName, logoUrl } = useCompanySettings();
@@ -97,6 +99,13 @@ export default function UserPaymentsPage() {
         .order('name');
 
       setProjects(projectsData || []);
+
+      // Fetch project-user assignments
+      const { data: projectUsersData } = await supabase
+        .from('project_users')
+        .select('*');
+
+      setProjectUsers(projectUsersData || []);
 
       // Try to fetch user payments from Supabase
       let allPayments: UserPayment[] = [];
@@ -441,7 +450,32 @@ export default function UserPaymentsPage() {
     ...users.map(u => ({ value: u.id, label: `${u.full_name} (${u.email})` })),
   ], [users]);
 
-  // Memoized project options for forms (stable reference)
+  // Get projects assigned to a specific user
+  const getProjectsForUser = (userId: string) => {
+    if (!userId) return [];
+    const userProjectIds = projectUsers
+      .filter(pu => pu.user_id === userId)
+      .map(pu => pu.project_id);
+    return projects.filter(p => userProjectIds.includes(p.id));
+  };
+
+  // Memoized filtered project options based on selected user
+  const filteredProjectOptions = useMemo(() => {
+    const userToFilter = selectedUserForPayment || preselectedUserId;
+    if (!userToFilter) {
+      return [{ value: '', label: 'Select a team member first' }];
+    }
+    const userProjects = getProjectsForUser(userToFilter);
+    if (userProjects.length === 0) {
+      return [{ value: '', label: 'No projects assigned to this user' }];
+    }
+    return [
+      { value: '', label: 'No specific project' },
+      ...userProjects.map(p => ({ value: p.id, label: p.name })),
+    ];
+  }, [projects, projectUsers, selectedUserForPayment, preselectedUserId]);
+
+  // Memoized project options for forms (stable reference) - for edit form, show all projects
   const projectOptions = useMemo(() => [
     { value: '', label: 'No specific project' },
     ...projects.map(p => ({ value: p.id, label: p.name })),
@@ -463,6 +497,21 @@ export default function UserPaymentsPage() {
       status: editingPayment.status,
     };
   }, [editingPayment]);
+
+  // Memoized filtered project options for edit form based on the payment's user
+  const editFilteredProjectOptions = useMemo(() => {
+    if (!editingPayment) {
+      return [{ value: '', label: 'No specific project' }];
+    }
+    const userProjects = getProjectsForUser(editingPayment.user_id);
+    if (userProjects.length === 0) {
+      return [{ value: '', label: 'No projects assigned to this user' }];
+    }
+    return [
+      { value: '', label: 'No specific project' },
+      ...userProjects.map(p => ({ value: p.id, label: p.name })),
+    ];
+  }, [projects, projectUsers, editingPayment]);
 
   // Get initial data for add form (memoized)
   const addFormInitialData = useMemo(() => {
@@ -834,6 +883,7 @@ export default function UserPaymentsPage() {
                           onClick={(e) => {
                             e.stopPropagation();
                             setPreselectedUserId(u.id);
+                            setSelectedUserForPayment(u.id);
                             setShowAddModal(true);
                           }}
                         >
@@ -856,6 +906,7 @@ export default function UserPaymentsPage() {
         onClose={() => {
           setShowAddModal(false);
           setPreselectedUserId('');
+          setSelectedUserForPayment('');
         }}
         title="Issue Payment"
         description="Record a payment issued to a team member"
@@ -864,13 +915,15 @@ export default function UserPaymentsPage() {
         <PaymentForm
           initialData={addFormInitialData}
           users={userOptions}
-          projects={projectOptions}
+          projects={filteredProjectOptions}
           isEdit={false}
           onSubmit={handleAddPayment}
           onCancel={() => {
             setShowAddModal(false);
             setPreselectedUserId('');
+            setSelectedUserForPayment('');
           }}
+          onUserChange={(userId) => setSelectedUserForPayment(userId)}
         />
       </Modal>
 
@@ -888,7 +941,7 @@ export default function UserPaymentsPage() {
         <PaymentForm
           initialData={editFormInitialData}
           users={userOptions}
-          projects={projectOptions}
+          projects={editFilteredProjectOptions}
           isEdit={true}
           onSubmit={handleUpdatePayment}
           onCancel={() => {

@@ -14,7 +14,8 @@ import { Modal } from '@/components/ui/modal';
 import { Avatar } from '@/components/ui/avatar';
 import { useCompanySettings } from '@/hooks/use-company-settings';
 import { PasswordConfirmModal } from '@/components/ui/password-confirm-modal';
-import { formatDate, formatCurrency } from '@/lib/utils';
+import { formatDate } from '@/lib/utils';
+import { formatCurrencyWithCode } from '@/lib/currency';
 import {
   Plus,
   Clock,
@@ -308,7 +309,7 @@ export default function AdminTimesheetPage() {
                             <Avatar name={user.full_name} size="sm" />
                             <div>
                               <p className="font-medium text-black text-sm">{user.full_name}</p>
-                              <p className="text-xs text-gray-500">{formatCurrency(user.hourly_rate)}/hr</p>
+                              <p className="text-xs text-gray-500">{formatCurrencyWithCode(user.hourly_rate, user.hourly_rate_currency || 'AED')}/hr</p>
                             </div>
                           </div>
                         </td>
@@ -402,7 +403,7 @@ export default function AdminTimesheetPage() {
                         {entry.hours} hrs
                       </TableCell>
                       <TableCell className="text-right text-gray-600">
-                        {formatCurrency(cost)}
+                        {formatCurrencyWithCode(cost, entryUser?.hourly_rate_currency || 'AED')}
                       </TableCell>
                       <TableCell>
                         <Button
