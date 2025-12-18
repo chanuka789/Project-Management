@@ -108,19 +108,49 @@ export function formatDualCurrency(
 
 /**
  * Get exchange rate for a currency to AED
- * This function can be extended to fetch real-time rates from an API
+ * Fetches real-time rates from our API endpoint
  */
 export async function getExchangeRate(
   fromCurrency: SupportedCurrency,
-  date?: Date
+  toCurrency: SupportedCurrency = 'AED'
+): Promise<{ rate: number; date: string; source: string }> {
+  try {
+    const response = await fetch(
+      `/api/exchange-rate?from=${fromCurrency}&to=${toCurrency}`
+    );
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch exchange rate');
+    }
+
+    const data = await response.json();
+
+    return {
+      rate: data.rate,
+      date: data.date,
+      source: data.source,
+    };
+  } catch (error) {
+    console.error('Error fetching exchange rate:', error);
+    // Return fallback rate
+    return {
+      rate: DEFAULT_EXCHANGE_RATES[fromCurrency],
+      date: new Date().toISOString().split('T')[0],
+      source: 'fallback',
+    };
+  }
+}
+
+/**
+ * Get real-time exchange rate (client-side function)
+ * This fetches the current rate at the time of submission
+ */
+export async function fetchLiveExchangeRate(
+  fromCurrency: SupportedCurrency,
+  toCurrency: SupportedCurrency = 'AED'
 ): Promise<number> {
-  // For now, return default rates
-  // In production, this could fetch from an API like:
-  // - Exchange Rate API
-  // - Open Exchange Rates
-  // - Currency Layer
-  // - or from the exchange_rates table in Supabase
-  return DEFAULT_EXCHANGE_RATES[fromCurrency];
+  const { rate } = await getExchangeRate(fromCurrency, toCurrency);
+  return rate;
 }
 
 /**
