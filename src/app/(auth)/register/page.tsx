@@ -6,9 +6,9 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useCompanySettings } from '@/hooks/use-company-settings';
-import { Mail, User, Phone, MapPin, Building2, KeyRound, ArrowLeft, CheckCircle2 } from 'lucide-react';
+import { Mail, User, Phone, MapPin, Building2, KeyRound, ArrowLeft, CheckCircle2, Loader2 } from 'lucide-react';
 
 type RegistrationStep = 'email' | 'verify' | 'profile' | 'success';
 
@@ -163,6 +163,7 @@ export default function RegisterPage() {
 
       if (error) throw error;
       setError('');
+      // In a real app, use a toast here
       alert('Verification code resent! Check your email.');
     } catch (err: unknown) {
       const error = err as { message?: string };
@@ -173,101 +174,121 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
-      {/* Decorative Background Elements */}
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-400/10 dark:bg-blue-500/5 rounded-full blur-3xl" />
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-[#0a5082]/10 dark:bg-[#0a5082]/5 rounded-full blur-3xl" />
+    <div className="min-h-screen w-full flex flex-col items-center justify-center p-4 transition-colors duration-300 bg-slate-50 dark:bg-slate-950">
+      
+      {/* Background Gradient & Effects */}
+      <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-blue-500/10 dark:bg-blue-500/10 rounded-full blur-3xl -translate-y-1/2" />
+        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-[#0a5082]/10 dark:bg-[#0a5082]/20 rounded-full blur-3xl translate-y-1/2" />
+        <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 dark:opacity-10 mix-blend-soft-light"></div>
       </div>
 
-      <div className="relative w-full max-w-md z-10">
-        {/* Logo Section */}
-        <div className="flex flex-col items-center mb-10">
+      <div className="w-full max-w-md z-10 relative">
+        
+        {/* Brand / Logo Section */}
+        <div className="flex flex-col items-center mb-8">
           {logoUrl ? (
-            <div className="mb-6 p-4 bg-white dark:bg-slate-800/50 rounded-2xl shadow-lg backdrop-blur-sm border border-slate-200 dark:border-slate-700">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={logoUrl}
-                alt={companyName}
-                className="h-16 w-auto object-contain"
-              />
-            </div>
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img
+              src={logoUrl}
+              alt={companyName}
+              className="h-16 w-auto object-contain"
+            />
           ) : (
-            <div className="h-20 w-20 rounded-2xl bg-white dark:bg-slate-800 flex items-center justify-center shadow-xl mb-6 border border-slate-200 dark:border-slate-700">
-              <Building2 className="h-10 w-10 text-[#0a5082]" />
+            <div className="h-16 w-16 bg-gradient-to-br from-[#0a5082] to-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-900/20">
+              <Building2 className="h-8 w-8 text-white" />
             </div>
           )}
         </div>
 
-        {/* Registration Card */}
-        <Card className="shadow-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/95 backdrop-blur-xl">
+        {/* Main Card */}
+        <Card className="border-0 shadow-2xl bg-white/80 dark:bg-slate-900/60 backdrop-blur-xl ring-1 ring-slate-200 dark:ring-slate-800">
+          
           {/* Step 1: Email & Name Entry */}
           {step === 'email' && (
             <>
-              <CardHeader className="text-center pb-2 pt-8">
-                <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Create Account</h2>
-                <p className="text-slate-600 dark:text-slate-400 text-sm mt-2">Enter your details to get started</p>
+              <CardHeader className="space-y-1 text-center pb-2 pt-8">
+                <CardTitle className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
+                  Create Account
+                </CardTitle>
+                <CardDescription className="text-sm text-slate-500 dark:text-slate-400">
+                  Enter your details to get started
+                </CardDescription>
               </CardHeader>
-              <CardContent className="px-8 pb-8">
-                <form onSubmit={handleSendOTP} className="space-y-5">
+              <CardContent className="px-8 pb-8 pt-4">
+                <form onSubmit={handleSendOTP} className="space-y-6">
                   {error && (
-                    <div className="p-3 rounded-lg bg-red-50 dark:bg-red-950/50 border border-red-200 dark:border-red-900 text-red-700 dark:text-red-400 text-sm">
+                    <div className="p-3 text-sm rounded-md bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/50 text-red-600 dark:text-red-400 animate-in fade-in slide-in-from-top-2">
                       {error}
                     </div>
                   )}
 
                   <div className="space-y-4">
-                    <div className="relative">
-                      <User className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 dark:text-slate-500" />
-                      <Input
-                        type="text"
-                        name="fullName"
-                        placeholder="Full Name"
-                        value={formData.fullName}
-                        onChange={handleChange}
-                        className="pl-10 h-12 bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 focus:border-[#0a5082] dark:focus:border-blue-500 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 transition-all"
-                        required
-                      />
+                    <div className="space-y-2">
+                      <div className="relative group">
+                        <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 transition-colors group-focus-within:text-[#0a5082] dark:group-focus-within:text-blue-400" />
+                        <Input
+                          type="text"
+                          name="fullName"
+                          placeholder="Full Name"
+                          value={formData.fullName}
+                          onChange={handleChange}
+                          className="pl-10 h-11 bg-slate-50 dark:bg-slate-950/50 border-slate-200 dark:border-slate-800 focus:ring-2 focus:ring-[#0a5082]/20 dark:focus:ring-blue-500/20 focus:border-[#0a5082] dark:focus:border-blue-500 transition-all"
+                          required
+                        />
+                      </div>
                     </div>
 
-                    <div className="relative">
-                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 dark:text-slate-500" />
-                      <Input
-                        type="email"
-                        name="email"
-                        placeholder="Email address"
-                        value={formData.email}
-                        onChange={handleChange}
-                        className="pl-10 h-12 bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 focus:border-[#0a5082] dark:focus:border-blue-500 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 transition-all"
-                        required
-                      />
+                    <div className="space-y-2">
+                      <div className="relative group">
+                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 transition-colors group-focus-within:text-[#0a5082] dark:group-focus-within:text-blue-400" />
+                        <Input
+                          type="email"
+                          name="email"
+                          placeholder="Email address"
+                          value={formData.email}
+                          onChange={handleChange}
+                          className="pl-10 h-11 bg-slate-50 dark:bg-slate-950/50 border-slate-200 dark:border-slate-800 focus:ring-2 focus:ring-[#0a5082]/20 dark:focus:ring-blue-500/20 focus:border-[#0a5082] dark:focus:border-blue-500 transition-all"
+                          required
+                        />
+                      </div>
                     </div>
                   </div>
 
                   <Button
                     type="submit"
-                    className="w-full h-12 bg-[#0a5082] hover:bg-[#0d6ebd] dark:bg-blue-600 dark:hover:bg-blue-700 text-white font-semibold text-base transition-all duration-200 shadow-lg hover:shadow-xl"
-                    size="lg"
-                    isLoading={isLoading}
+                    className="w-full h-11 bg-[#0a5082] hover:bg-[#084068] dark:bg-blue-600 dark:hover:bg-blue-700 text-white font-semibold transition-all shadow-lg shadow-blue-900/10 hover:shadow-blue-900/20"
+                    disabled={isLoading}
                   >
-                    Send Verification Code
+                    {isLoading ? (
+                      <div className="flex items-center gap-2">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <span>Sending Code...</span>
+                      </div>
+                    ) : (
+                      'Send Verification Code'
+                    )}
                   </Button>
 
-                  <div className="relative my-6">
+                  <div className="relative">
                     <div className="absolute inset-0 flex items-center">
-                      <div className="w-full border-t border-slate-200 dark:border-slate-700"></div>
+                      <span className="w-full border-t border-slate-200 dark:border-slate-800" />
                     </div>
                     <div className="relative flex justify-center text-xs uppercase">
-                      <span className="bg-white dark:bg-slate-900 px-2 text-slate-400 dark:text-slate-500">or</span>
+                      <span className="bg-white dark:bg-slate-900 px-2 text-slate-500 dark:text-slate-500">
+                        Or
+                      </span>
                     </div>
                   </div>
 
-                  <p className="text-center text-sm text-slate-600 dark:text-slate-400">
-                    Already have an account?{' '}
-                    <Link href="/login" className="text-[#0a5082] dark:text-blue-400 font-semibold hover:text-[#0d6ebd] dark:hover:text-blue-300 transition-colors">
-                      Sign In
-                    </Link>
-                  </p>
+                  <div className="text-center">
+                    <p className="text-sm text-slate-600 dark:text-slate-400">
+                      Already have an account?{' '}
+                      <Link href="/login" className="text-[#0a5082] dark:text-blue-400 font-medium hover:text-[#084068] dark:hover:text-blue-300 transition-colors">
+                        Sign In
+                      </Link>
+                    </p>
+                  </div>
                 </form>
               </CardContent>
             </>
@@ -277,61 +298,74 @@ export default function RegisterPage() {
           {step === 'verify' && (
             <>
               <CardHeader className="text-center pb-2 pt-8">
-                <div className="flex justify-center mb-4">
-                  <div className="h-16 w-16 rounded-full bg-[#0a5082]/10 dark:bg-blue-500/10 flex items-center justify-center">
-                    <KeyRound className="h-8 w-8 text-[#0a5082] dark:text-blue-500" />
+                <div className="flex justify-center mb-6">
+                  <div className="relative">
+                    <div className="absolute inset-0 bg-[#0a5082]/20 dark:bg-blue-500/10 rounded-full blur-xl animate-pulse" />
+                    <div className="relative h-16 w-16 rounded-full bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 flex items-center justify-center">
+                      <KeyRound className="h-8 w-8 text-[#0a5082] dark:text-blue-500" />
+                    </div>
                   </div>
                 </div>
-                <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Verify Your Email</h2>
-                <p className="text-slate-600 dark:text-slate-400 text-sm mt-2">
+                <CardTitle className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
+                  Verify Your Email
+                </CardTitle>
+                <CardDescription className="text-sm text-slate-500 dark:text-slate-400 mt-2">
                   We sent an 8-digit code to{' '}
                   <span className="font-medium text-[#0a5082] dark:text-blue-400">{formData.email}</span>
-                </p>
+                </CardDescription>
               </CardHeader>
-              <CardContent className="px-8 pb-8">
-                <form onSubmit={handleVerifyOTP} className="space-y-5">
+              <CardContent className="px-8 pb-8 pt-4">
+                <form onSubmit={handleVerifyOTP} className="space-y-6">
                   {error && (
-                    <div className="p-3 rounded-lg bg-red-50 dark:bg-red-950/50 border border-red-200 dark:border-red-900 text-red-700 dark:text-red-400 text-sm">
+                    <div className="p-3 text-sm rounded-md bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/50 text-red-600 dark:text-red-400 animate-in fade-in slide-in-from-top-2">
                       {error}
                     </div>
                   )}
 
-                  <div className="relative">
-                    <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 dark:text-slate-500" />
-                    <Input
-                      type="text"
-                      name="otp"
-                      placeholder="Enter 8-digit code"
-                      value={formData.otp}
-                      onChange={handleChange}
-                      className="pl-10 h-12 text-center text-xl tracking-widest font-mono bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 focus:border-[#0a5082] dark:focus:border-blue-500 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 transition-all"
-                      maxLength={8}
-                      required
-                    />
+                  <div className="space-y-2">
+                    <div className="relative group">
+                      <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 transition-colors group-focus-within:text-[#0a5082] dark:group-focus-within:text-blue-400" />
+                      <Input
+                        type="text"
+                        name="otp"
+                        placeholder="Enter 8-digit code"
+                        value={formData.otp}
+                        onChange={handleChange}
+                        className="pl-10 h-12 text-center text-lg tracking-[0.2em] font-mono bg-slate-50 dark:bg-slate-950/50 border-slate-200 dark:border-slate-800 focus:ring-2 focus:ring-[#0a5082]/20 dark:focus:ring-blue-500/20 focus:border-[#0a5082] dark:focus:border-blue-500 transition-all"
+                        maxLength={8}
+                        required
+                      />
+                    </div>
                   </div>
 
                   <Button
                     type="submit"
-                    className="w-full h-12 bg-[#0a5082] hover:bg-[#0d6ebd] dark:bg-blue-600 dark:hover:bg-blue-700 text-white font-semibold text-base transition-all duration-200 shadow-lg hover:shadow-xl"
-                    size="lg"
-                    isLoading={isLoading}
+                    className="w-full h-11 bg-[#0a5082] hover:bg-[#084068] dark:bg-blue-600 dark:hover:bg-blue-700 text-white font-semibold transition-all shadow-lg shadow-blue-900/10 hover:shadow-blue-900/20"
+                    disabled={isLoading}
                   >
-                    Verify Code
+                    {isLoading ? (
+                      <div className="flex items-center gap-2">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <span>Verifying...</span>
+                      </div>
+                    ) : (
+                      'Verify Code'
+                    )}
                   </Button>
 
                   <div className="flex items-center justify-between text-sm">
                     <button
                       type="button"
                       onClick={() => setStep('email')}
-                      className="flex items-center gap-1 text-slate-500 dark:text-slate-400 hover:text-[#0a5082] dark:hover:text-blue-400 transition-colors"
+                      className="flex items-center gap-1 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 transition-colors group"
                     >
-                      <ArrowLeft className="h-4 w-4" />
+                      <ArrowLeft className="h-3 w-3 transition-transform group-hover:-translate-x-0.5" />
                       Change email
                     </button>
                     <button
                       type="button"
                       onClick={handleResendOTP}
-                      className="text-[#0a5082] dark:text-blue-400 font-medium hover:text-[#0d6ebd] dark:hover:text-blue-300 transition-colors"
+                      className="text-[#0a5082] dark:text-blue-400 font-medium hover:text-[#084068] dark:hover:text-blue-300 transition-colors"
                       disabled={isLoading}
                     >
                       Resend code
@@ -346,65 +380,87 @@ export default function RegisterPage() {
           {step === 'profile' && (
             <>
               <CardHeader className="text-center pb-2 pt-8">
-                <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Complete Your Profile</h2>
-                <p className="text-slate-600 dark:text-slate-400 text-sm mt-2">Add your contact details (optional)</p>
+                <CardTitle className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
+                  Complete Profile
+                </CardTitle>
+                <CardDescription className="text-sm text-slate-500 dark:text-slate-400">
+                  Add your contact details (optional)
+                </CardDescription>
               </CardHeader>
-              <CardContent className="px-8 pb-8">
-                <form onSubmit={handleCompleteProfile} className="space-y-5">
+              <CardContent className="px-8 pb-8 pt-4">
+                <form onSubmit={handleCompleteProfile} className="space-y-6">
                   {error && (
-                    <div className="p-3 rounded-lg bg-red-50 dark:bg-red-950/50 border border-red-200 dark:border-red-900 text-red-700 dark:text-red-400 text-sm">
+                    <div className="p-3 text-sm rounded-md bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/50 text-red-600 dark:text-red-400 animate-in fade-in slide-in-from-top-2">
                       {error}
                     </div>
                   )}
 
-                  <div className="p-4 bg-[#0a5082]/5 dark:bg-blue-500/10 rounded-lg border border-[#0a5082]/10 dark:border-blue-500/20">
-                    <p className="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wide">Registered as</p>
-                    <p className="font-semibold text-slate-900 dark:text-white mt-1">{formData.fullName}</p>
-                    <p className="text-sm text-[#0a5082] dark:text-blue-400">{formData.email}</p>
+                  <div className="p-4 bg-slate-50 dark:bg-slate-950/50 rounded-lg border border-slate-100 dark:border-slate-800">
+                    <div className="flex items-center gap-3">
+                      <div className="h-10 w-10 rounded-full bg-[#0a5082]/10 dark:bg-blue-500/10 flex items-center justify-center shrink-0">
+                        <User className="h-5 w-5 text-[#0a5082] dark:text-blue-400" />
+                      </div>
+                      <div className="overflow-hidden">
+                        <p className="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wide">Registered as</p>
+                        <p className="font-medium text-slate-900 dark:text-slate-200 truncate">{formData.email}</p>
+                      </div>
+                    </div>
                   </div>
 
                   <div className="space-y-4">
-                    <div className="relative">
-                      <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 dark:text-slate-500" />
-                      <Input
-                        type="tel"
-                        name="phone"
-                        placeholder="Phone Number (optional)"
-                        value={formData.phone}
-                        onChange={handleChange}
-                        className="pl-10 h-12 bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 focus:border-[#0a5082] dark:focus:border-blue-500 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 transition-all"
-                      />
+                    <div className="space-y-2">
+                      <div className="relative group">
+                        <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 transition-colors group-focus-within:text-[#0a5082] dark:group-focus-within:text-blue-400" />
+                        <Input
+                          type="tel"
+                          name="phone"
+                          placeholder="Phone Number (optional)"
+                          value={formData.phone}
+                          onChange={handleChange}
+                          className="pl-10 h-11 bg-slate-50 dark:bg-slate-950/50 border-slate-200 dark:border-slate-800 focus:ring-2 focus:ring-[#0a5082]/20 dark:focus:ring-blue-500/20 focus:border-[#0a5082] dark:focus:border-blue-500 transition-all"
+                        />
+                      </div>
                     </div>
 
-                    <div className="relative">
-                      <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 dark:text-slate-500" />
-                      <Input
-                        type="text"
-                        name="location"
-                        placeholder="Location (optional)"
-                        value={formData.location}
-                        onChange={handleChange}
-                        className="pl-10 h-12 bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 focus:border-[#0a5082] dark:focus:border-blue-500 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 transition-all"
-                      />
+                    <div className="space-y-2">
+                      <div className="relative group">
+                        <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 transition-colors group-focus-within:text-[#0a5082] dark:group-focus-within:text-blue-400" />
+                        <Input
+                          type="text"
+                          name="location"
+                          placeholder="Location (optional)"
+                          value={formData.location}
+                          onChange={handleChange}
+                          className="pl-10 h-11 bg-slate-50 dark:bg-slate-950/50 border-slate-200 dark:border-slate-800 focus:ring-2 focus:ring-[#0a5082]/20 dark:focus:ring-blue-500/20 focus:border-[#0a5082] dark:focus:border-blue-500 transition-all"
+                        />
+                      </div>
                     </div>
                   </div>
 
-                  <Button
-                    type="submit"
-                    className="w-full h-12 bg-[#0a5082] hover:bg-[#0d6ebd] dark:bg-blue-600 dark:hover:bg-blue-700 text-white font-semibold text-base transition-all duration-200 shadow-lg hover:shadow-xl"
-                    size="lg"
-                    isLoading={isLoading}
-                  >
-                    Complete Registration
-                  </Button>
+                  <div className="space-y-3">
+                    <Button
+                      type="submit"
+                      className="w-full h-11 bg-[#0a5082] hover:bg-[#084068] dark:bg-blue-600 dark:hover:bg-blue-700 text-white font-semibold transition-all shadow-lg shadow-blue-900/10 hover:shadow-blue-900/20"
+                      disabled={isLoading}
+                    >
+                      {isLoading ? (
+                        <div className="flex items-center gap-2">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          <span>Saving...</span>
+                        </div>
+                      ) : (
+                        'Complete Registration'
+                      )}
+                    </Button>
 
-                  <button
-                    type="button"
-                    onClick={handleCompleteProfile}
-                    className="w-full text-center text-sm text-slate-500 dark:text-slate-400 hover:text-[#0a5082] dark:hover:text-blue-400 transition-colors"
-                  >
-                    Skip for now
-                  </button>
+                    <button
+                      type="button"
+                      onClick={handleCompleteProfile}
+                      className="w-full text-sm text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 transition-colors py-2"
+                    >
+                      Skip for now
+                    </button>
+                  </div>
                 </form>
               </CardContent>
             </>
@@ -414,21 +470,28 @@ export default function RegisterPage() {
           {step === 'success' && (
             <>
               <CardHeader className="text-center pb-2 pt-8">
-                <div className="flex justify-center mb-4">
-                  <div className="h-20 w-20 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center animate-bounce">
-                    <CheckCircle2 className="h-10 w-10 text-green-600 dark:text-green-400" />
+                <div className="flex justify-center mb-6">
+                  <div className="relative">
+                    <div className="absolute inset-0 bg-green-500/20 dark:bg-green-500/10 rounded-full blur-xl animate-pulse" />
+                    <div className="relative h-20 w-20 rounded-full bg-green-50 dark:bg-green-900/20 border border-green-100 dark:border-green-900/50 flex items-center justify-center">
+                      <CheckCircle2 className="h-10 w-10 text-green-600 dark:text-green-400 animate-in zoom-in duration-300" />
+                    </div>
                   </div>
                 </div>
-                <h2 className="text-2xl font-bold text-green-600 dark:text-green-400">Welcome!</h2>
-                <p className="text-slate-600 dark:text-slate-400 mt-2">Your account has been created successfully</p>
+                <CardTitle className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
+                  Welcome!
+                </CardTitle>
+                <CardDescription className="text-sm text-slate-500 dark:text-slate-400 mt-2">
+                  Your account has been created successfully
+                </CardDescription>
               </CardHeader>
-              <CardContent className="px-8 pb-8">
-                <div className="text-center space-y-4">
-                  <p className="text-slate-600 dark:text-slate-400">
+              <CardContent className="px-8 pb-8 pt-4">
+                <div className="text-center space-y-6">
+                  <p className="text-sm text-slate-600 dark:text-slate-400">
                     Redirecting you to your dashboard...
                   </p>
                   <div className="flex justify-center">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0a5082] dark:border-blue-500" />
+                    <Loader2 className="h-6 w-6 animate-spin text-[#0a5082] dark:text-blue-500" />
                   </div>
                 </div>
               </CardContent>
@@ -437,8 +500,8 @@ export default function RegisterPage() {
         </Card>
 
         {/* Footer */}
-        <p className="text-center text-sm text-slate-600 dark:text-slate-400 mt-8">
-          &copy; {new Date().getFullYear()} {companyName}. All rights reserved.
+        <p className="text-center text-xs text-slate-400 dark:text-slate-600 mt-8">
+          &copy; {new Date().getFullYear()} {companyName || 'Company'}. All rights reserved.
         </p>
       </div>
     </div>
