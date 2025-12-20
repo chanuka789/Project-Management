@@ -32,13 +32,19 @@ import {
   Copy,
   Check,
 } from 'lucide-react';
-import type { User, SupportedCurrency } from '@/types/database';
-import { SUPPORTED_CURRENCIES, formatCurrencyWithCode } from '@/lib/currency';
+import type { User, SupportedCurrency, TimeEntry, UserPayment } from '@/types/database';
+import { SUPPORTED_CURRENCIES, formatCurrencyWithCode, convertToAED, convertFromAED, DEFAULT_EXCHANGE_RATES } from '@/lib/currency';
+
+interface UserWithPaymentInfo extends User {
+  total_cost_aed: number;
+  total_paid_aed: number;
+  pending_aed: number;
+}
 
 export default function UsersPage() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [users, setUsers] = useState<User[]>([]);
-  const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
+  const [users, setUsers] = useState<UserWithPaymentInfo[]>([]);
+  const [filteredUsers, setFilteredUsers] = useState<UserWithPaymentInfo[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
@@ -75,6 +81,46 @@ export default function UsersPage() {
   const supabase = createClient();
   const { companyName, logoUrl } = useCompanySettings();
 
+  // Helper function to calculate users with payment info
+  const calculateUsersWithPaymentInfo = async (usersData: User[]): Promise<UserWithPaymentInfo[]> => {
+    // Fetch time entries with user hourly rates
+    const { data: timeEntries } = await supabase
+      .from('time_entries')
+      .select('*, users(id, hourly_rate, hourly_rate_currency)');
+
+    // Fetch user payments
+    const { data: userPayments } = await supabase
+      .from('user_payments')
+      .select('*');
+
+    return usersData.map((u) => {
+      // Calculate total cost from timesheets (in AED)
+      const userTimeEntries = (timeEntries || []).filter((te: { user_id: string }) => te.user_id === u.id);
+      const totalCostAed = userTimeEntries.reduce((sum: number, te: { hours: number; users?: { hourly_rate: number; hourly_rate_currency?: string } }) => {
+        const hourlyRate = te.users?.hourly_rate || u.hourly_rate || 0;
+        const rateCurrency = (te.users?.hourly_rate_currency as SupportedCurrency) || u.hourly_rate_currency || 'AED';
+        const hourlyRateAed = rateCurrency === 'AED'
+          ? hourlyRate
+          : convertToAED(hourlyRate, rateCurrency, DEFAULT_EXCHANGE_RATES[rateCurrency]);
+        return sum + (te.hours * hourlyRateAed);
+      }, 0);
+
+      // Calculate total paid from user_payments (in AED)
+      const userPaymentsList = (userPayments || []).filter((p: UserPayment) => p.user_id === u.id && p.status === 'completed');
+      const totalPaidAed = userPaymentsList.reduce((sum: number, p: UserPayment) => sum + (p.amount_aed || p.amount), 0);
+
+      // Pending = Total cost - Total paid
+      const pendingAed = Math.max(0, totalCostAed - totalPaidAed);
+
+      return {
+        ...u,
+        total_cost_aed: totalCostAed,
+        total_paid_aed: totalPaidAed,
+        pending_aed: pendingAed,
+      };
+    });
+  };
+
   // Generate a random password
   const generatePassword = () => {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$%';
@@ -103,8 +149,11 @@ export default function UsersPage() {
           .select('*')
           .order('created_at', { ascending: false });
 
-        setUsers(usersData || []);
-        setFilteredUsers(usersData || []);
+        // Calculate payment info for each user
+        const usersWithPaymentInfo = await calculateUsersWithPaymentInfo(usersData || []);
+
+        setUsers(usersWithPaymentInfo);
+        setFilteredUsers(usersWithPaymentInfo);
       } catch (error) {
         console.error('Error fetching users:', error);
       } finally {
@@ -169,13 +218,14 @@ export default function UsersPage() {
 
       if (error) throw error;
 
-      // Refresh data
+      // Refresh data with payment calculations
       const { data: updatedUsers } = await supabase
         .from('users')
         .select('*')
         .order('created_at', { ascending: false });
 
-      setUsers(updatedUsers || []);
+      const usersWithPaymentInfo = await calculateUsersWithPaymentInfo(updatedUsers || []);
+      setUsers(usersWithPaymentInfo);
       setShowEditModal(false);
       setSelectedUser(null);
     } catch (error) {
@@ -271,13 +321,14 @@ export default function UsersPage() {
           password: newUserForm.password,
         });
 
-        // Refresh users list
+        // Refresh users list with payment calculations
         const { data: updatedUsers } = await supabase
           .from('users')
           .select('*')
           .order('created_at', { ascending: false });
 
-        setUsers(updatedUsers || []);
+        const usersWithPaymentInfo = await calculateUsersWithPaymentInfo(updatedUsers || []);
+        setUsers(usersWithPaymentInfo);
       }
     } catch (error: unknown) {
       console.error('Error creating user:', error);
@@ -391,6 +442,8 @@ export default function UsersPage() {
                     <TableHead>Location</TableHead>
                     <TableHead>Role</TableHead>
                     <TableHead>Hourly Rate</TableHead>
+                    <TableHead className="text-right">Paid</TableHead>
+                    <TableHead className="text-right">Pending</TableHead>
                     <TableHead>Joined</TableHead>
                     <TableHead></TableHead>
                   </TableRow>
@@ -442,6 +495,40 @@ export default function UsersPage() {
                         <span className="font-medium text-[#0a5082]">
                           {formatCurrencyWithCode(user.hourly_rate, user.hourly_rate_currency || 'AED')}/hr
                         </span>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div>
+                          <span className="font-medium text-green-600">
+                            {formatCurrencyWithCode(
+                              user.default_currency && user.default_currency !== 'AED'
+                                ? convertFromAED(user.total_paid_aed, user.default_currency, DEFAULT_EXCHANGE_RATES[user.default_currency])
+                                : user.total_paid_aed,
+                              user.default_currency || 'AED'
+                            )}
+                          </span>
+                          {user.default_currency && user.default_currency !== 'AED' && user.total_paid_aed > 0 && (
+                            <span className="block text-xs text-gray-500">
+                              ≈ {formatCurrencyWithCode(user.total_paid_aed, 'AED')}
+                            </span>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div>
+                          <span className={`font-medium ${user.pending_aed > 0 ? 'text-orange-600' : 'text-gray-500'}`}>
+                            {formatCurrencyWithCode(
+                              user.default_currency && user.default_currency !== 'AED'
+                                ? convertFromAED(user.pending_aed, user.default_currency, DEFAULT_EXCHANGE_RATES[user.default_currency])
+                                : user.pending_aed,
+                              user.default_currency || 'AED'
+                            )}
+                          </span>
+                          {user.default_currency && user.default_currency !== 'AED' && user.pending_aed > 0 && (
+                            <span className="block text-xs text-gray-500">
+                              ≈ {formatCurrencyWithCode(user.pending_aed, 'AED')}
+                            </span>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell>
                         <span className="text-sm text-gray-500">

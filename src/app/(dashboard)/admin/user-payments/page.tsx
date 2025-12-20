@@ -16,7 +16,7 @@ import { PasswordConfirmModal } from '@/components/ui/password-confirm-modal';
 import { PaymentForm, PaymentFormData } from '@/components/forms/payment-form';
 import { useCompanySettings } from '@/hooks/use-company-settings';
 import { formatCurrency, formatDate } from '@/lib/utils';
-import { formatCurrencyWithCode, getCurrencyInfo, SUPPORTED_CURRENCIES, DEFAULT_EXCHANGE_RATES, convertToAED, fetchLiveExchangeRate } from '@/lib/currency';
+import { formatCurrencyWithCode, getCurrencyInfo, SUPPORTED_CURRENCIES, DEFAULT_EXCHANGE_RATES, convertToAED, convertFromAED, fetchLiveExchangeRate } from '@/lib/currency';
 import {
   Plus,
   Search,
@@ -46,6 +46,8 @@ interface UserWithPayments extends User {
   payments: UserPayment[];
   total_paid: number;
   total_paid_aed: number;
+  total_cost_aed: number;
+  pending_aed: number;
   payment_count: number;
 }
 
@@ -126,6 +128,11 @@ export default function UserPaymentsPage() {
 
       setPayments(allPayments);
 
+      // Fetch time entries to calculate costs
+      const { data: timeEntries } = await supabase
+        .from('time_entries')
+        .select('*, users(id, hourly_rate, hourly_rate_currency)');
+
       // Calculate payment summaries for each user
       const usersWithPayments = (usersData || []).map((u) => {
         const userPayments = allPayments.filter(p => p.user_id === u.id);
@@ -136,11 +143,27 @@ export default function UserPaymentsPage() {
           .filter(p => p.status === 'completed')
           .reduce((sum, p) => sum + (p.amount_aed || p.amount), 0);
 
+        // Calculate total cost from timesheets (in AED)
+        const userTimeEntries = (timeEntries || []).filter((te: { user_id: string }) => te.user_id === u.id);
+        const totalCostAed = userTimeEntries.reduce((sum: number, te: { hours: number; users?: { hourly_rate: number; hourly_rate_currency?: string } }) => {
+          const hourlyRate = te.users?.hourly_rate || u.hourly_rate || 0;
+          const rateCurrency = (te.users?.hourly_rate_currency as SupportedCurrency) || u.hourly_rate_currency || 'AED';
+          const hourlyRateAed = rateCurrency === 'AED'
+            ? hourlyRate
+            : convertToAED(hourlyRate, rateCurrency, DEFAULT_EXCHANGE_RATES[rateCurrency]);
+          return sum + (te.hours * hourlyRateAed);
+        }, 0);
+
+        // Pending = Total cost - Total paid
+        const pendingAed = Math.max(0, totalCostAed - totalPaidAed);
+
         return {
           ...u,
           payments: userPayments,
           total_paid: totalPaid,
           total_paid_aed: totalPaidAed,
+          total_cost_aed: totalCostAed,
+          pending_aed: pendingAed,
           payment_count: userPayments.length,
         };
       });
@@ -254,7 +277,7 @@ export default function UserPaymentsPage() {
   // Calculate overview metrics (memoized to prevent recalculation on form inputs)
   const metrics = useMemo(() => ({
     totalPaid: payments.filter(p => p.status === 'completed').reduce((sum, p) => sum + (p.amount_aed || p.amount), 0),
-    totalPending: payments.filter(p => p.status === 'pending').reduce((sum, p) => sum + (p.amount_aed || p.amount), 0),
+    totalPendingFromTimesheets: users.reduce((sum, u) => sum + u.pending_aed, 0),
     totalPayments: payments.length,
     activeUsers: users.filter(u => u.payment_count > 0).length,
   }), [payments, users]);
@@ -566,10 +589,10 @@ export default function UserPaymentsPage() {
             description={`${metrics.totalPayments} payments`}
           />
           <StatCard
-            title="Pending Payments"
-            value={formatCurrency(metrics.totalPending)}
+            title="Pending to Pay (AED)"
+            value={formatCurrency(metrics.totalPendingFromTimesheets)}
             icon={<Clock className="h-5 w-5" />}
-            description="Awaiting processing"
+            description="From timesheets"
           />
           <StatCard
             title="Team Members Paid"
@@ -783,10 +806,34 @@ export default function UserPaymentsPage() {
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-6">
                         <div className="text-right">
-                          <p className="text-sm text-muted-foreground">Total Paid (AED)</p>
-                          <p className="text-lg font-bold text-foreground">{formatCurrency(u.total_paid_aed)}</p>
+                          <p className="text-sm text-muted-foreground">Paid</p>
+                          <p className="text-lg font-bold text-green-600">
+                            {formatCurrencyWithCode(
+                              u.default_currency && u.default_currency !== 'AED'
+                                ? convertFromAED(u.total_paid_aed, u.default_currency, DEFAULT_EXCHANGE_RATES[u.default_currency])
+                                : u.total_paid_aed,
+                              u.default_currency || 'AED'
+                            )}
+                          </p>
+                          {u.default_currency && u.default_currency !== 'AED' && u.total_paid_aed > 0 && (
+                            <p className="text-xs text-muted-foreground">≈ {formatCurrencyWithCode(u.total_paid_aed, 'AED')}</p>
+                          )}
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm text-muted-foreground">Pending</p>
+                          <p className={`text-lg font-bold ${u.pending_aed > 0 ? 'text-orange-600' : 'text-muted-foreground'}`}>
+                            {formatCurrencyWithCode(
+                              u.default_currency && u.default_currency !== 'AED'
+                                ? convertFromAED(u.pending_aed, u.default_currency, DEFAULT_EXCHANGE_RATES[u.default_currency])
+                                : u.pending_aed,
+                              u.default_currency || 'AED'
+                            )}
+                          </p>
+                          {u.default_currency && u.default_currency !== 'AED' && u.pending_aed > 0 && (
+                            <p className="text-xs text-muted-foreground">≈ {formatCurrencyWithCode(u.pending_aed, 'AED')}</p>
+                          )}
                         </div>
                         <div className="flex items-center gap-2">
                           {isExpanded ? (
