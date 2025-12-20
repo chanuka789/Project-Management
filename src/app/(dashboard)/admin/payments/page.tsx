@@ -184,13 +184,14 @@ export default function PaymentsPage() {
         const projectPayments = allPayments.filter(p => p.project_id === project.id);
         const totalPaid = projectPayments
           .filter(p => p.status === 'paid')
-          .reduce((sum, p) => sum + p.amount, 0);
+          .reduce((sum, p) => sum + (p.amount || 0), 0);
         const totalPending = projectPayments
           .filter(p => p.status === 'pending' || p.status === 'partial')
-          .reduce((sum, p) => sum + p.amount, 0);
-        const balanceDue = project.contract_value - totalPaid;
-        const paymentPercentage = project.contract_value > 0
-          ? (totalPaid / project.contract_value) * 100
+          .reduce((sum, p) => sum + (p.amount || 0), 0);
+        const contractValue = project.contract_value || 0;
+        const balanceDue = contractValue - totalPaid;
+        const paymentPercentage = contractValue > 0
+          ? (totalPaid / contractValue) * 100
           : 0;
 
         return {
@@ -318,7 +319,7 @@ export default function PaymentsPage() {
     const totalReceived = payments
       .filter(p => p.status === 'paid' || p.status === 'partial')
       .reduce((sum, p) => {
-        const convertedAmount = convertPaymentAmount(p.amount, p.currency, userCurrency);
+        const convertedAmount = convertPaymentAmount(p.amount || 0, p.currency, userCurrency);
         return sum + convertedAmount;
       }, 0);
 
@@ -326,21 +327,21 @@ export default function PaymentsPage() {
     const totalPending = payments
       .filter(p => p.status === 'pending' || p.status === 'overdue')
       .reduce((sum, p) => {
-        const convertedAmount = convertPaymentAmount(p.amount, p.currency, userCurrency);
+        const convertedAmount = convertPaymentAmount(p.amount || 0, p.currency, userCurrency);
         return sum + convertedAmount;
       }, 0);
 
     // Calculate total contract value in user's default currency
     const totalContractValue = projects.reduce((sum, p) => {
       const convertedValue = convertPaymentAmount(
-        p.contract_value,
+        p.contract_value || 0,
         p.currency || DEFAULT_CURRENCY,
         userCurrency
       );
       return sum + convertedValue;
     }, 0);
 
-    const totalBalance = totalContractValue - totalReceived;
+    const totalBalance = Math.max(0, totalContractValue - totalReceived);
 
     return {
       totalContractValue,
@@ -1151,7 +1152,7 @@ export default function PaymentsPage() {
             title={`Total Received (${metrics.userCurrency})`}
             value={formatCurrencyWithCode(metrics.totalReceived, metrics.userCurrency)}
             icon={<CheckCircle2 className="h-5 w-5" />}
-            trend={{ value: metrics.totalContractValue > 0 ? Math.round((metrics.totalReceived / metrics.totalContractValue) * 100) : 0, label: 'collected' }}
+            trend={{ value: metrics.totalContractValue > 0 ? Math.round(((metrics.totalReceived || 0) / metrics.totalContractValue) * 100) : 0, label: 'collected' }}
           />
           <StatCard
             title={`Pending Payments (${metrics.userCurrency})`}
