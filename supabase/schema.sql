@@ -141,6 +141,8 @@ CREATE TABLE IF NOT EXISTS payments (
     project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
     client_id UUID REFERENCES clients(id) ON DELETE SET NULL,
     amount DECIMAL(15,2) NOT NULL CHECK (amount > 0),
+    currency VARCHAR(10) NOT NULL DEFAULT 'AED'
+        CHECK (currency IN ('AED', 'USD', 'QAR', 'SAR', 'LKR')),
     payment_date DATE NOT NULL,
     due_date DATE,
     status VARCHAR(20) NOT NULL DEFAULT 'pending'
@@ -154,6 +156,16 @@ CREATE TABLE IF NOT EXISTS payments (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW()),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW())
 );
+
+-- Add currency column if not exists (migration for existing databases)
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                   WHERE table_name = 'payments' AND column_name = 'currency') THEN
+        ALTER TABLE payments ADD COLUMN currency VARCHAR(10) NOT NULL DEFAULT 'AED'
+            CHECK (currency IN ('AED', 'USD', 'QAR', 'SAR', 'LKR'));
+    END IF;
+END $$;
 
 -- =====================================================
 -- INDEXES FOR PERFORMANCE

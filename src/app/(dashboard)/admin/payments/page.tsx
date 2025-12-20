@@ -49,6 +49,7 @@ interface Payment {
   id: string;
   project_id: string;
   amount: number;
+  currency: SupportedCurrency;
   payment_date: string;
   due_date?: string;
   status: PaymentStatus;
@@ -367,6 +368,7 @@ export default function PaymentsPage() {
       await savePayment({
         project_id: formData.project_id,
         amount: parseFloat(formData.amount),
+        currency: formData.currency,
         payment_date: formData.payment_date,
         due_date: formData.due_date || undefined,
         status: formData.status,
@@ -398,6 +400,7 @@ export default function PaymentsPage() {
         id: editingPayment.id,
         project_id: formData.project_id,
         amount: parseFloat(formData.amount),
+        currency: formData.currency,
         payment_date: formData.payment_date,
         due_date: formData.due_date || undefined,
         status: formData.status,
@@ -1038,6 +1041,7 @@ export default function PaymentsPage() {
     return {
       project_id: editingPayment.project_id,
       amount: editingPayment.amount.toString(),
+      currency: editingPayment.currency || 'AED',
       payment_date: editingPayment.payment_date,
       due_date: editingPayment.due_date || '',
       status: editingPayment.status,

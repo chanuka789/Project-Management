@@ -108,6 +108,7 @@ export interface Payment {
   project_id: string;
   client_id?: string;
   amount: number;
+  currency: SupportedCurrency;
   payment_date: string;
   due_date?: string;
   status: PaymentStatus;
