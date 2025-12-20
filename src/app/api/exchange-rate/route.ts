@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 
-// Free exchange rate API - uses Google Finance data via exchangerate-api
-const EXCHANGE_RATE_API = 'https://api.exchangerate-api.com/v4/latest';
+// FreeCurrencyAPI - Real-time exchange rates
+const FREECURRENCY_API_KEY = 'fca_live_JFtriOcYvYN4VX44KuAK6cs09VBPNJxX8ZfFPuWa';
+const FREECURRENCY_API_URL = 'https://api.freecurrencyapi.com/v1/latest';
 
 // Fallback rates in case API fails (rates to AED)
 const FALLBACK_RATES: Record<string, number> = {
@@ -18,19 +19,25 @@ export async function GET(request: Request) {
   const toCurrency = searchParams.get('to') || 'AED';
 
   try {
-    // Fetch exchange rate from API
-    const response = await fetch(`${EXCHANGE_RATE_API}/${fromCurrency}`, {
-      next: { revalidate: 300 }, // Cache for 5 minutes
-    });
+    // Fetch exchange rate from FreeCurrencyAPI
+    // Get rates with base currency as the 'from' currency
+    const response = await fetch(
+      `${FREECURRENCY_API_URL}?apikey=${FREECURRENCY_API_KEY}&base_currency=${fromCurrency}&currencies=${toCurrency}`,
+      {
+        cache: 'no-store', // Always fetch fresh rates at submission time
+      }
+    );
 
     if (!response.ok) {
-      throw new Error('Failed to fetch exchange rate');
+      const errorText = await response.text();
+      console.error('FreeCurrencyAPI error:', errorText);
+      throw new Error('Failed to fetch exchange rate from FreeCurrencyAPI');
     }
 
     const data = await response.json();
 
-    // Get the rate for the target currency
-    const rate = data.rates[toCurrency];
+    // FreeCurrencyAPI returns { data: { AED: 3.6725 } }
+    const rate = data.data?.[toCurrency];
 
     if (!rate) {
       throw new Error(`Rate not found for ${toCurrency}`);
@@ -42,7 +49,7 @@ export async function GET(request: Request) {
       to: toCurrency,
       rate: rate,
       date: new Date().toISOString().split('T')[0],
-      source: 'exchangerate-api.com',
+      source: 'freecurrencyapi.com',
     });
   } catch (error) {
     console.error('Exchange rate API error:', error);
