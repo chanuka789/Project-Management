@@ -164,13 +164,14 @@ export default function PaymentsPage() {
         const projectPayments = allPayments.filter(p => p.project_id === project.id);
         const totalPaid = projectPayments
           .filter(p => p.status === 'paid')
-          .reduce((sum, p) => sum + p.amount, 0);
+          .reduce((sum, p) => sum + (p.amount || 0), 0);
         const totalPending = projectPayments
           .filter(p => p.status === 'pending' || p.status === 'partial')
-          .reduce((sum, p) => sum + p.amount, 0);
-        const balanceDue = project.contract_value - totalPaid;
-        const paymentPercentage = project.contract_value > 0
-          ? (totalPaid / project.contract_value) * 100
+          .reduce((sum, p) => sum + (p.amount || 0), 0);
+        const contractValue = project.contract_value || 0;
+        const balanceDue = contractValue - totalPaid;
+        const paymentPercentage = contractValue > 0
+          ? (totalPaid / contractValue) * 100
           : 0;
 
         return {
@@ -292,10 +293,10 @@ export default function PaymentsPage() {
 
   // Calculate overview metrics (memoized to prevent recalculation on form inputs)
   const metrics = useMemo(() => ({
-    totalContractValue: projects.reduce((sum, p) => sum + p.contract_value, 0),
-    totalReceived: projects.reduce((sum, p) => sum + p.total_paid, 0),
-    totalPending: projects.reduce((sum, p) => sum + p.total_pending, 0),
-    totalBalance: projects.reduce((sum, p) => sum + p.balance_due, 0),
+    totalContractValue: projects.reduce((sum, p) => sum + (p.contract_value || 0), 0),
+    totalReceived: projects.reduce((sum, p) => sum + (p.total_paid || 0), 0),
+    totalPending: projects.reduce((sum, p) => sum + (p.total_pending || 0), 0),
+    totalBalance: projects.reduce((sum, p) => sum + (p.balance_due || 0), 0),
     overduePayments: payments.filter(p =>
       p.status === 'pending' && p.due_date && new Date(p.due_date) < new Date()
     ).length,
@@ -1093,7 +1094,7 @@ export default function PaymentsPage() {
             title="Total Received"
             value={formatCurrency(metrics.totalReceived)}
             icon={<CheckCircle2 className="h-5 w-5" />}
-            trend={{ value: metrics.totalContractValue > 0 ? Math.round((metrics.totalReceived / metrics.totalContractValue) * 100) : 0, label: 'collected' }}
+            trend={{ value: metrics.totalContractValue > 0 ? Math.round(((metrics.totalReceived || 0) / metrics.totalContractValue) * 100) : 0, label: 'collected' }}
           />
           <StatCard
             title="Pending Payments"
