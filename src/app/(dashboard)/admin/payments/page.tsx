@@ -42,13 +42,14 @@ import {
   Edit,
 } from 'lucide-react';
 import type { User, Project, PaymentStatus, PaymentMethod, SupportedCurrency } from '@/types/database';
-import { formatCurrencyWithCode, getCurrencyInfo } from '@/lib/currency';
+import { formatCurrencyWithCode, getCurrencyInfo, convertToAED, convertFromAED, DEFAULT_CURRENCY } from '@/lib/currency';
 
 // Payment type for Supabase storage
 interface Payment {
   id: string;
   project_id: string;
   amount: number;
+  currency: SupportedCurrency;
   payment_date: string;
   due_date?: string;
   status: PaymentStatus;
@@ -89,6 +90,25 @@ const generateInvoiceNumber = (existingPayments: Payment[]): string => {
   const maxNumber = existingNumbers.length > 0 ? Math.max(...existingNumbers) : 0;
   const nextNumber = maxNumber + 1;
   return `INV-${nextNumber.toString().padStart(6, '0')}`;
+};
+
+/**
+ * Convert payment amount to target currency
+ * @param amount - The payment amount
+ * @param fromCurrency - The currency of the payment
+ * @param toCurrency - The target currency to convert to
+ * @returns Converted amount in target currency
+ */
+const convertPaymentAmount = (
+  amount: number,
+  fromCurrency: SupportedCurrency,
+  toCurrency: SupportedCurrency
+): number => {
+  if (fromCurrency === toCurrency) return amount;
+
+  // Convert to AED first, then to target currency
+  const amountInAED = convertToAED(amount, fromCurrency);
+  return convertFromAED(amountInAED, toCurrency);
 };
 
 export default function PaymentsPage() {
@@ -292,15 +312,48 @@ export default function PaymentsPage() {
   };
 
   // Calculate overview metrics (memoized to prevent recalculation on form inputs)
-  const metrics = useMemo(() => ({
-    totalContractValue: projects.reduce((sum, p) => sum + (p.contract_value || 0), 0),
-    totalReceived: projects.reduce((sum, p) => sum + (p.total_paid || 0), 0),
-    totalPending: projects.reduce((sum, p) => sum + (p.total_pending || 0), 0),
-    totalBalance: projects.reduce((sum, p) => sum + (p.balance_due || 0), 0),
-    overduePayments: payments.filter(p =>
-      p.status === 'pending' && p.due_date && new Date(p.due_date) < new Date()
-    ).length,
-  }), [projects, payments]);
+  const metrics = useMemo(() => {
+    const userCurrency = user?.default_currency || DEFAULT_CURRENCY;
+
+    // Calculate total received (paid + partial payments) in user's default currency
+    const totalReceived = payments
+      .filter(p => p.status === 'paid' || p.status === 'partial')
+      .reduce((sum, p) => {
+        const convertedAmount = convertPaymentAmount(p.amount || 0, p.currency, userCurrency);
+        return sum + convertedAmount;
+      }, 0);
+
+    // Calculate total pending in user's default currency
+    const totalPending = payments
+      .filter(p => p.status === 'pending' || p.status === 'overdue')
+      .reduce((sum, p) => {
+        const convertedAmount = convertPaymentAmount(p.amount || 0, p.currency, userCurrency);
+        return sum + convertedAmount;
+      }, 0);
+
+    // Calculate total contract value in user's default currency
+    const totalContractValue = projects.reduce((sum, p) => {
+      const convertedValue = convertPaymentAmount(
+        p.contract_value || 0,
+        p.currency || DEFAULT_CURRENCY,
+        userCurrency
+      );
+      return sum + convertedValue;
+    }, 0);
+
+    const totalBalance = Math.max(0, totalContractValue - totalReceived);
+
+    return {
+      totalContractValue,
+      totalReceived,
+      totalPending,
+      totalBalance,
+      overduePayments: payments.filter(p =>
+        p.status === 'pending' && p.due_date && new Date(p.due_date) < new Date()
+      ).length,
+      userCurrency,
+    };
+  }, [projects, payments, user]);
 
   // Payment status distribution (memoized)
   const paymentStatusData = useMemo(() => ({
@@ -312,6 +365,7 @@ export default function PaymentsPage() {
 
   // Monthly payment data for chart (memoized)
   const monthlyData = useMemo(() => {
+    const userCurrency = user?.default_currency || DEFAULT_CURRENCY;
     const months: Record<string, { received: number; pending: number }> = {};
     const now = new Date();
     for (let i = 5; i >= 0; i--) {
@@ -324,10 +378,11 @@ export default function PaymentsPage() {
       const date = new Date(payment.payment_date);
       const key = date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
       if (months[key]) {
+        const convertedAmount = convertPaymentAmount(payment.amount, payment.currency, userCurrency);
         if (payment.status === 'paid') {
-          months[key].received += payment.amount;
+          months[key].received += convertedAmount;
         } else {
-          months[key].pending += payment.amount;
+          months[key].pending += convertedAmount;
         }
       }
     });
@@ -336,7 +391,7 @@ export default function PaymentsPage() {
       month,
       ...data,
     }));
-  }, [payments]);
+  }, [payments, user]);
 
   const maxMonthlyValue = useMemo(() => Math.max(...monthlyData.map(d => d.received + d.pending), 1), [monthlyData]);
 
@@ -368,6 +423,7 @@ export default function PaymentsPage() {
       await savePayment({
         project_id: formData.project_id,
         amount: parseFloat(formData.amount),
+        currency: formData.currency,
         payment_date: formData.payment_date,
         due_date: formData.due_date || undefined,
         status: formData.status,
@@ -399,6 +455,7 @@ export default function PaymentsPage() {
         id: editingPayment.id,
         project_id: formData.project_id,
         amount: parseFloat(formData.amount),
+        currency: formData.currency,
         payment_date: formData.payment_date,
         due_date: formData.due_date || undefined,
         status: formData.status,
@@ -1039,6 +1096,7 @@ export default function PaymentsPage() {
     return {
       project_id: editingPayment.project_id,
       amount: editingPayment.amount.toString(),
+      currency: editingPayment.currency || 'AED',
       payment_date: editingPayment.payment_date,
       due_date: editingPayment.due_date || '',
       status: editingPayment.status,
@@ -1085,26 +1143,26 @@ export default function PaymentsPage() {
         {/* Overview Stats */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard
-            title="Total Contract Value"
-            value={formatCurrency(metrics.totalContractValue)}
+            title={`Total Contract Value (${metrics.userCurrency})`}
+            value={formatCurrencyWithCode(metrics.totalContractValue, metrics.userCurrency)}
             icon={<FileText className="h-5 w-5" />}
             description={`${projects.length} projects`}
           />
           <StatCard
-            title="Total Received"
-            value={formatCurrency(metrics.totalReceived)}
+            title={`Total Received (${metrics.userCurrency})`}
+            value={formatCurrencyWithCode(metrics.totalReceived, metrics.userCurrency)}
             icon={<CheckCircle2 className="h-5 w-5" />}
             trend={{ value: metrics.totalContractValue > 0 ? Math.round(((metrics.totalReceived || 0) / metrics.totalContractValue) * 100) : 0, label: 'collected' }}
           />
           <StatCard
-            title="Pending Payments"
-            value={formatCurrency(metrics.totalPending)}
+            title={`Pending Payments (${metrics.userCurrency})`}
+            value={formatCurrencyWithCode(metrics.totalPending, metrics.userCurrency)}
             icon={<Clock className="h-5 w-5" />}
             description={`${paymentStatusData.pending} invoices`}
           />
           <StatCard
-            title="Balance Due"
-            value={formatCurrency(metrics.totalBalance)}
+            title={`Balance Due (${metrics.userCurrency})`}
+            value={formatCurrencyWithCode(metrics.totalBalance, metrics.userCurrency)}
             icon={<AlertCircle className="h-5 w-5" />}
             description={metrics.overduePayments > 0 ? `${metrics.overduePayments} overdue` : 'All on time'}
           />

@@ -6,11 +6,13 @@ import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Edit, Receipt } from 'lucide-react';
-import type { PaymentStatus, PaymentMethod } from '@/types/database';
+import type { PaymentStatus, PaymentMethod, SupportedCurrency } from '@/types/database';
+import { SUPPORTED_CURRENCIES } from '@/lib/currency';
 
 export interface ClientPaymentFormData {
   project_id: string;
   amount: string;
+  currency: SupportedCurrency;
   payment_date: string;
   due_date: string;
   status: PaymentStatus;
@@ -42,6 +44,7 @@ const ClientPaymentFormComponent = ({
   const [formState, setFormState] = useState<ClientPaymentFormData>({
     project_id: initialData?.project_id || '',
     amount: initialData?.amount || '',
+    currency: initialData?.currency || 'AED',
     payment_date: initialData?.payment_date || new Date().toISOString().split('T')[0],
     due_date: initialData?.due_date || '',
     status: initialData?.status || 'pending',
@@ -57,6 +60,7 @@ const ClientPaymentFormComponent = ({
       setFormState({
         project_id: initialData.project_id || '',
         amount: initialData.amount || '',
+        currency: initialData.currency || 'AED',
         payment_date: initialData.payment_date || new Date().toISOString().split('T')[0],
         due_date: initialData.due_date || '',
         status: initialData.status || 'pending',
@@ -66,7 +70,7 @@ const ClientPaymentFormComponent = ({
         description: initialData.description || '',
       });
     }
-  }, [initialData?.project_id, initialData?.amount, initialData?.invoice_number]);
+  }, [initialData?.project_id, initialData?.amount, initialData?.currency, initialData?.invoice_number]);
 
   const handleChange = (field: keyof ClientPaymentFormData, value: string) => {
     setFormState(prev => ({ ...prev, [field]: value }));
@@ -76,6 +80,12 @@ const ClientPaymentFormComponent = ({
     e.preventDefault();
     onSubmit(formState);
   };
+
+  // Currency options for the selector
+  const currencyOptions = SUPPORTED_CURRENCIES.map(curr => ({
+    value: curr.code,
+    label: `${curr.flag} ${curr.code} - ${curr.name}`,
+  }));
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -88,16 +98,26 @@ const ClientPaymentFormComponent = ({
         disabled={isEdit}
       />
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-3 gap-4">
+        <Select
+          label="Currency"
+          value={formState.currency}
+          onChange={(e) => handleChange('currency', e.target.value as SupportedCurrency)}
+          options={currencyOptions}
+        />
         <Input
-          label="Amount (AED)"
+          label={`Amount (${formState.currency})`}
           type="number"
           value={formState.amount}
           onChange={(e) => handleChange('amount', e.target.value)}
           min="0"
           step="0.01"
           required
+          className="col-span-2"
         />
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
         <Select
           label="Status"
           value={formState.status}
