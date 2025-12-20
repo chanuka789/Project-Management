@@ -22,8 +22,8 @@ import {
   ArrowUpRight,
   ArrowDownRight,
 } from 'lucide-react';
-import type { User, Project, SupportedCurrency } from '@/types/database';
-import { convertToAED, DEFAULT_EXCHANGE_RATES } from '@/lib/currency';
+import type { User, Project, SupportedCurrency, UserPayment } from '@/types/database';
+import { convertToAED, convertFromAED, DEFAULT_EXCHANGE_RATES, formatCurrencyWithCode } from '@/lib/currency';
 
 interface ProjectFinance {
   id: string;
@@ -37,6 +37,15 @@ interface ProjectFinance {
   status: string;
 }
 
+interface TeamMemberPayment {
+  id: string;
+  name: string;
+  default_currency: SupportedCurrency;
+  total_cost_aed: number;
+  total_paid_aed: number;
+  pending_aed: number;
+}
+
 interface FinanceData {
   totalContractValue: number;
   totalLaborCost: number;
@@ -46,6 +55,9 @@ interface FinanceData {
   profitMargin: number;
   projectFinances: ProjectFinance[];
   userCosts: { name: string; cost: number }[];
+  teamPayments: TeamMemberPayment[];
+  totalTeamPaid: number;
+  totalTeamPending: number;
 }
 
 export default function FinancePage() {
@@ -148,6 +160,50 @@ export default function FinancePage() {
           .sort((a, b) => b.cost - a.cost)
           .slice(0, 6);
 
+        // Fetch all users for team payment tracking
+        const { data: allUsers } = await supabase
+          .from('users')
+          .select('*')
+          .order('full_name');
+
+        // Fetch user payments
+        const { data: userPayments } = await supabase
+          .from('user_payments')
+          .select('*');
+
+        // Calculate team payment data
+        const teamPayments: TeamMemberPayment[] = (allUsers || []).map((u: User) => {
+          // Calculate total cost from timesheets (in AED)
+          const userTimeEntries = (timeEntries || []).filter((te: { user_id: string }) => te.user_id === u.id);
+          const totalCostAed = userTimeEntries.reduce((sum: number, te: { hours: number; users?: { hourly_rate: number; hourly_rate_currency?: string } }) => {
+            const hourlyRate = te.users?.hourly_rate || u.hourly_rate || 0;
+            const rateCurrency = (te.users?.hourly_rate_currency as SupportedCurrency) || u.hourly_rate_currency || 'AED';
+            const hourlyRateAed = rateCurrency === 'AED'
+              ? hourlyRate
+              : convertToAED(hourlyRate, rateCurrency, DEFAULT_EXCHANGE_RATES[rateCurrency]);
+            return sum + (te.hours * hourlyRateAed);
+          }, 0);
+
+          // Calculate total paid from user_payments (in AED)
+          const userPaymentsList = (userPayments || []).filter((p: UserPayment) => p.user_id === u.id && p.status === 'completed');
+          const totalPaidAed = userPaymentsList.reduce((sum: number, p: UserPayment) => sum + (p.amount_aed || p.amount), 0);
+
+          // Pending = Total cost - Total paid
+          const pendingAed = Math.max(0, totalCostAed - totalPaidAed);
+
+          return {
+            id: u.id,
+            name: u.full_name,
+            default_currency: (u.default_currency || 'AED') as SupportedCurrency,
+            total_cost_aed: totalCostAed,
+            total_paid_aed: totalPaidAed,
+            pending_aed: pendingAed,
+          };
+        }).filter((u: TeamMemberPayment) => u.total_cost_aed > 0 || u.total_paid_aed > 0);
+
+        const totalTeamPaid = teamPayments.reduce((sum, u) => sum + u.total_paid_aed, 0);
+        const totalTeamPending = teamPayments.reduce((sum, u) => sum + u.pending_aed, 0);
+
         setFinanceData({
           totalContractValue,
           totalLaborCost,
@@ -157,6 +213,9 @@ export default function FinancePage() {
           profitMargin,
           projectFinances,
           userCosts,
+          teamPayments,
+          totalTeamPaid,
+          totalTeamPending,
         });
       } catch (error) {
         console.error('Error fetching finance data:', error);
@@ -281,6 +340,92 @@ export default function FinancePage() {
                 <p className="text-center text-gray-500 py-4 col-span-3">No cost data available</p>
               )}
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Team Payment Tracking */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <DollarSign className="h-5 w-5 text-[#0a5082]" />
+              Team Payment Tracking
+            </CardTitle>
+            <div className="flex gap-6 mt-2">
+              <div className="text-sm">
+                <span className="text-gray-500">Total Paid: </span>
+                <span className="font-semibold text-green-600">{formatCurrency(financeData?.totalTeamPaid || 0)}</span>
+              </div>
+              <div className="text-sm">
+                <span className="text-gray-500">Total Pending: </span>
+                <span className="font-semibold text-orange-600">{formatCurrency(financeData?.totalTeamPending || 0)}</span>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Team Member</TableHead>
+                  <TableHead className="text-right">Paid</TableHead>
+                  <TableHead className="text-right">Pending</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {financeData?.teamPayments.map((member) => (
+                  <TableRow key={member.id}>
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <div className="h-8 w-8 rounded-full bg-[#0a5082] text-white flex items-center justify-center font-medium text-sm">
+                          {member.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                        </div>
+                        <span className="font-medium">{member.name}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div>
+                        <span className="font-medium text-green-600">
+                          {formatCurrencyWithCode(
+                            member.default_currency !== 'AED'
+                              ? convertFromAED(member.total_paid_aed, member.default_currency, DEFAULT_EXCHANGE_RATES[member.default_currency])
+                              : member.total_paid_aed,
+                            member.default_currency
+                          )}
+                        </span>
+                        {member.default_currency !== 'AED' && member.total_paid_aed > 0 && (
+                          <span className="block text-xs text-gray-500">
+                            ≈ {formatCurrencyWithCode(member.total_paid_aed, 'AED')}
+                          </span>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div>
+                        <span className={`font-medium ${member.pending_aed > 0 ? 'text-orange-600' : 'text-gray-500'}`}>
+                          {formatCurrencyWithCode(
+                            member.default_currency !== 'AED'
+                              ? convertFromAED(member.pending_aed, member.default_currency, DEFAULT_EXCHANGE_RATES[member.default_currency])
+                              : member.pending_aed,
+                            member.default_currency
+                          )}
+                        </span>
+                        {member.default_currency !== 'AED' && member.pending_aed > 0 && (
+                          <span className="block text-xs text-gray-500">
+                            ≈ {formatCurrencyWithCode(member.pending_aed, 'AED')}
+                          </span>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {(!financeData?.teamPayments || financeData.teamPayments.length === 0) && (
+                  <TableRow>
+                    <TableCell colSpan={3} className="text-center text-gray-500 py-8">
+                      No payment data available
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
           </CardContent>
         </Card>
 
