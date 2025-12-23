@@ -68,6 +68,7 @@ export default function UserPaymentsPage() {
   const [paymentToDelete, setPaymentToDelete] = useState<UserPayment | null>(null);
   const [preselectedUserId, setPreselectedUserId] = useState<string>('');
   const [selectedUserForPayment, setSelectedUserForPayment] = useState<string>('');
+  const [lkrExchangeRate, setLkrExchangeRate] = useState<number>(DEFAULT_EXCHANGE_RATES.LKR);
 
   const supabase = createClient();
   const { companyName, logoUrl } = useCompanySettings();
@@ -169,6 +170,18 @@ export default function UserPaymentsPage() {
       });
 
       setUsers(usersWithPayments);
+
+      // Fetch LKR exchange rate
+      try {
+        const exchangeRateData = await fetch('/api/exchange-rate?from=AED&to=LKR');
+        if (exchangeRateData.ok) {
+          const rateInfo = await exchangeRateData.json();
+          setLkrExchangeRate(rateInfo.rate || DEFAULT_EXCHANGE_RATES.LKR);
+        }
+      } catch (error) {
+        console.error('Error fetching LKR exchange rate:', error);
+        setLkrExchangeRate(DEFAULT_EXCHANGE_RATES.LKR);
+      }
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
@@ -586,13 +599,15 @@ export default function UserPaymentsPage() {
             title="Total Paid (AED)"
             value={formatCurrency(metrics.totalPaid)}
             icon={<DollarSign className="h-5 w-5" />}
-            description={`${metrics.totalPayments} payments`}
+            description={`${formatCurrency(metrics.totalPaid * lkrExchangeRate)} LKR`}
+            secondaryDescription={`${metrics.totalPayments} payments`}
           />
           <StatCard
             title="Pending to Pay (AED)"
             value={formatCurrency(metrics.totalPendingFromTimesheets)}
             icon={<Clock className="h-5 w-5" />}
-            description="From timesheets"
+            description={`${formatCurrency(metrics.totalPendingFromTimesheets * lkrExchangeRate)} LKR`}
+            secondaryDescription="From timesheets"
           />
           <StatCard
             title="Team Members Paid"
@@ -604,7 +619,8 @@ export default function UserPaymentsPage() {
             title="This Month"
             value={formatCurrency(monthlyData[monthlyData.length - 1]?.amount || 0)}
             icon={<TrendingUp className="h-5 w-5" />}
-            description={monthlyData[monthlyData.length - 1]?.month || ''}
+            description={`${formatCurrency((monthlyData[monthlyData.length - 1]?.amount || 0) * lkrExchangeRate)} LKR`}
+            secondaryDescription={monthlyData[monthlyData.length - 1]?.month || ''}
           />
         </div>
 

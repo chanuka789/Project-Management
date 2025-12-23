@@ -7,6 +7,7 @@ interface StatCardProps {
   value: string | number;
   icon?: ReactNode;
   description?: string;
+  secondaryDescription?: string;
   trend?: {
     value: number;
     label?: string;
@@ -19,6 +20,7 @@ export function StatCard({
   value,
   icon,
   description,
+  secondaryDescription,
   trend,
   className,
 }: StatCardProps) {
@@ -53,8 +55,8 @@ export function StatCard({
       </div>
       <div className="mt-4">
         <p className="text-2xl sm:text-3xl font-bold text-foreground">{value}</p>
-        {(description || trend) && (
-          <div className="mt-2 flex flex-wrap items-center gap-2">
+        {(description || secondaryDescription || trend) && (
+          <div className="mt-2 flex flex-col gap-1">
             {trend && (
               <div className={cn('flex items-center gap-1', getTrendColor())}>
                 {getTrendIcon()}
@@ -65,6 +67,9 @@ export function StatCard({
             )}
             {description && (
               <p className="text-sm text-muted-foreground">{description}</p>
+            )}
+            {secondaryDescription && (
+              <p className="text-xs text-muted-foreground/70">{secondaryDescription}</p>
             )}
           </div>
         )}
