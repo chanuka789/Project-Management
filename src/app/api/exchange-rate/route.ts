@@ -18,12 +18,25 @@ function normalizeCurrencyParam(
   return isValidCurrency(normalized) ? normalized : fallback;
 }
 
-function resolveApiKey(): string {
-  const envKey =
-    process.env.FREECURRENCY_API_KEY || process.env.NEXT_PUBLIC_FREECURRENCY_API_KEY;
+function isLikelyValidApiKey(key: string | undefined | null): key is string {
+  if (!key) return false;
 
-  const trimmedEnvKey = envKey?.trim();
-  if (trimmedEnvKey) return trimmedEnvKey;
+  const trimmed = key.trim();
+  // Ignore placeholders or malformed values that break FreeCurrencyAPI
+  if (!trimmed || trimmed === 'undefined' || trimmed === 'null') return false;
+
+  // All FreeCurrencyAPI keys begin with "fca_" (live or test). Keep a light prefix check
+  return trimmed.startsWith('fca_');
+}
+
+function resolveApiKey(): string {
+  const candidates = [
+    process.env.FREECURRENCY_API_KEY,
+    process.env.NEXT_PUBLIC_FREECURRENCY_API_KEY,
+  ];
+
+  const validKey = candidates.find(isLikelyValidApiKey);
+  if (validKey) return validKey.trim();
 
   return DEFAULT_FREECURRENCY_API_KEY;
 }
