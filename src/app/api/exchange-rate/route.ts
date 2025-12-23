@@ -19,12 +19,13 @@ function normalizeCurrencyParam(
 }
 
 function resolveApiKey(): string {
-  const apiKey =
-    process.env.FREECURRENCY_API_KEY ||
-    process.env.NEXT_PUBLIC_FREECURRENCY_API_KEY ||
-    DEFAULT_FREECURRENCY_API_KEY;
+  const envKey =
+    process.env.FREECURRENCY_API_KEY || process.env.NEXT_PUBLIC_FREECURRENCY_API_KEY;
 
-  return apiKey.trim();
+  const trimmedEnvKey = envKey?.trim();
+  if (trimmedEnvKey) return trimmedEnvKey;
+
+  return DEFAULT_FREECURRENCY_API_KEY;
 }
 
 export async function GET(request: Request) {
