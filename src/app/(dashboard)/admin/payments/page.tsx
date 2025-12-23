@@ -42,7 +42,14 @@ import {
   Edit,
 } from 'lucide-react';
 import type { User, Project, PaymentStatus, PaymentMethod, SupportedCurrency } from '@/types/database';
-import { formatCurrencyWithCode, getCurrencyInfo, convertToAED, convertFromAED, DEFAULT_CURRENCY } from '@/lib/currency';
+import {
+  formatCurrencyWithCode,
+  getCurrencyInfo,
+  convertToAED,
+  convertFromAED,
+  DEFAULT_CURRENCY,
+  isValidCurrency,
+} from '@/lib/currency';
 
 // Payment type for Supabase storage
 interface Payment {
@@ -101,14 +108,17 @@ const generateInvoiceNumber = (existingPayments: Payment[]): string => {
  */
 const convertPaymentAmount = (
   amount: number,
-  fromCurrency: SupportedCurrency,
-  toCurrency: SupportedCurrency
+  fromCurrency?: SupportedCurrency,
+  toCurrency?: SupportedCurrency
 ): number => {
-  if (fromCurrency === toCurrency) return amount;
+  const safeFromCurrency = isValidCurrency(fromCurrency ?? '') ? fromCurrency! : DEFAULT_CURRENCY;
+  const safeToCurrency = isValidCurrency(toCurrency ?? '') ? toCurrency! : DEFAULT_CURRENCY;
+
+  if (safeFromCurrency === safeToCurrency) return amount;
 
   // Convert to AED first, then to target currency
-  const amountInAED = convertToAED(amount, fromCurrency);
-  return convertFromAED(amountInAED, toCurrency);
+  const amountInAED = convertToAED(amount, safeFromCurrency);
+  return convertFromAED(amountInAED, safeToCurrency);
 };
 
 export default function PaymentsPage() {
