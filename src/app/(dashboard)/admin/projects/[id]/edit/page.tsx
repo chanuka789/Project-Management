@@ -125,9 +125,9 @@ export default function EditProjectPage() {
 
       toast.success('Project updated successfully!');
       router.push(`/admin/projects/${projectId}`);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error updating project:', error);
-      const errorMessage = error?.message || 'Failed to update project';
+      const errorMessage = error instanceof Error ? error.message : 'Failed to update project';
       toast.error(errorMessage);
     } finally {
       setIsSaving(false);

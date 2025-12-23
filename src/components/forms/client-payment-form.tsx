@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, memo } from 'react';
+import { memo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
@@ -53,24 +53,6 @@ const ClientPaymentFormComponent = ({
     invoice_number: initialData?.invoice_number || '',
     description: initialData?.description || '',
   });
-
-  // Update form if initialData changes (e.g., when editing different payment)
-  useEffect(() => {
-    if (initialData) {
-      setFormState({
-        project_id: initialData.project_id || '',
-        amount: initialData.amount || '',
-        currency: initialData.currency || 'AED',
-        payment_date: initialData.payment_date || new Date().toISOString().split('T')[0],
-        due_date: initialData.due_date || '',
-        status: initialData.status || 'pending',
-        payment_method: initialData.payment_method || 'bank_transfer',
-        reference_number: initialData.reference_number || '',
-        invoice_number: initialData.invoice_number || '',
-        description: initialData.description || '',
-      });
-    }
-  }, [initialData?.project_id, initialData?.amount, initialData?.currency, initialData?.invoice_number]);
 
   const handleChange = (field: keyof ClientPaymentFormData, value: string) => {
     setFormState(prev => ({ ...prev, [field]: value }));

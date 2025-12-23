@@ -2,24 +2,9 @@
 
 import { Moon, Sun, Monitor } from 'lucide-react'
 import { useTheme } from '@/contexts/theme-context'
-import { useState, useEffect } from 'react'
 
 export function ThemeToggle() {
   const { theme, setTheme, actualTheme } = useTheme()
-  const [mounted, setMounted] = useState(false)
-
-  // Avoid hydration mismatch
-  useEffect(() => {
-    setMounted(true)
-  }, [])
-
-  if (!mounted) {
-    return (
-      <div className="w-9 h-9 rounded-lg bg-muted flex items-center justify-center">
-        <Sun className="h-4 w-4" />
-      </div>
-    )
-  }
 
   return (
     <div className="flex items-center gap-1 p-1 rounded-lg bg-muted">
@@ -63,19 +48,6 @@ export function ThemeToggle() {
 // Simple mobile-friendly toggle (just switches between light/dark)
 export function SimpleThemeToggle() {
   const { toggleTheme, actualTheme } = useTheme()
-  const [mounted, setMounted] = useState(false)
-
-  useEffect(() => {
-    setMounted(true)
-  }, [])
-
-  if (!mounted) {
-    return (
-      <button className="p-2 rounded-lg hover:bg-muted transition-colors">
-        <Sun className="h-5 w-5" />
-      </button>
-    )
-  }
 
   return (
     <button

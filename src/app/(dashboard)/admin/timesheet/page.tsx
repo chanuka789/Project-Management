@@ -146,9 +146,10 @@ export default function AdminTimesheetPage() {
       // Close modal and refresh data
       setShowModal(false);
       window.location.reload();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error adding time entry:', error);
-      alert(`Failed to add time entry: ${error?.message || 'Unknown error'}`);
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      alert(`Failed to add time entry: ${message}`);
     }
   };
 

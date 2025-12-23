@@ -1580,6 +1580,7 @@ export default function PaymentsPage() {
         size="lg"
       >
         <ClientPaymentForm
+          key={addFormInitialData?.invoice_number || 'new-payment'}
           initialData={addFormInitialData}
           projects={projectOptions}
           isEdit={false}
@@ -1604,6 +1605,7 @@ export default function PaymentsPage() {
         size="lg"
       >
         <ClientPaymentForm
+          key={editFormInitialData?.invoice_number || editFormInitialData?.project_id || 'edit-payment'}
           initialData={editFormInitialData}
           projects={projectOptions}
           isEdit={true}

@@ -971,6 +971,7 @@ export default function UserPaymentsPage() {
         size="lg"
       >
         <PaymentForm
+          key={addFormInitialData?.reference_number || addFormInitialData?.user_id || 'new-user-payment'}
           initialData={addFormInitialData}
           users={userOptions}
           projects={filteredProjectOptions}
@@ -997,6 +998,7 @@ export default function UserPaymentsPage() {
         size="lg"
       >
         <PaymentForm
+          key={editFormInitialData?.reference_number || editFormInitialData?.user_id || 'edit-user-payment'}
           initialData={editFormInitialData}
           users={userOptions}
           projects={editFilteredProjectOptions}
