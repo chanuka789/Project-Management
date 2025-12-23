@@ -46,6 +46,18 @@ export async function GET(request: Request) {
   const fromCurrency = normalizeCurrencyParam(searchParams.get('from'));
   const toCurrency = normalizeCurrencyParam(searchParams.get('to'));
 
+  // Short-circuit when both currencies are identical to avoid unnecessary API calls
+  if (fromCurrency === toCurrency) {
+    return NextResponse.json({
+      success: true,
+      from: fromCurrency,
+      to: toCurrency,
+      rate: 1,
+      date: new Date().toISOString().split('T')[0],
+      source: 'noop',
+    });
+  }
+
   const apiKey = resolveApiKey();
 
   try {
@@ -76,7 +88,7 @@ export async function GET(request: Request) {
     // FreeCurrencyAPI returns { data: { AED: 3.6725 } }
     const rate = data.data?.[toCurrency];
 
-    if (!rate) {
+    if (typeof rate !== 'number') {
       throw new Error(`Rate not found for ${toCurrency}`);
     }
 
