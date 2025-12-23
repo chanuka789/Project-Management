@@ -1,28 +1,42 @@
 import { NextResponse } from 'next/server';
 
-// FreeCurrencyAPI - Real-time exchange rates
-const FREECURRENCY_API_KEY = 'fca_live_JFtriOcYvYN4VX44KuAK6cs09VBPNJxX8ZfFPuWa';
-const FREECURRENCY_API_URL = 'https://api.freecurrencyapi.com/v1/latest';
+import { DEFAULT_CURRENCY, DEFAULT_EXCHANGE_RATES, isValidCurrency } from '@/lib/currency';
+import type { SupportedCurrency } from '@/lib/currency';
 
-// Fallback rates in case API fails (rates to AED)
-const FALLBACK_RATES: Record<string, number> = {
-  AED: 1.0,
-  USD: 3.6725,
-  QAR: 1.009,
-  SAR: 0.97933,
-  LKR: 0.0125,
-};
+// FreeCurrencyAPI - Real-time exchange rates
+const FREECURRENCY_API_URL = 'https://api.freecurrencyapi.com/v1/latest';
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const fromCurrency = searchParams.get('from') || 'USD';
-  const toCurrency = searchParams.get('to') || 'AED';
+  const rawFromCurrency = (searchParams.get('from') || DEFAULT_CURRENCY).toUpperCase();
+  const rawToCurrency = (searchParams.get('to') || DEFAULT_CURRENCY).toUpperCase();
+  const fromCurrency: SupportedCurrency = isValidCurrency(rawFromCurrency)
+    ? rawFromCurrency
+    : DEFAULT_CURRENCY;
+  const toCurrency: SupportedCurrency = isValidCurrency(rawToCurrency)
+    ? rawToCurrency
+    : DEFAULT_CURRENCY;
+
+  const apiKey = process.env.FREECURRENCY_API_KEY || process.env.NEXT_PUBLIC_FREECURRENCY_API_KEY;
+
+  if (!apiKey) {
+    const fallbackRate = calculateFallbackRate(fromCurrency, toCurrency);
+    return NextResponse.json({
+      success: true,
+      from: fromCurrency,
+      to: toCurrency,
+      rate: fallbackRate,
+      date: new Date().toISOString().split('T')[0],
+      source: 'fallback',
+      warning: 'Missing FREECURRENCY_API_KEY, using default exchange rates',
+    });
+  }
 
   try {
     // Fetch exchange rate from FreeCurrencyAPI
     // Get rates with base currency as the 'from' currency
     const response = await fetch(
-      `${FREECURRENCY_API_URL}?apikey=${FREECURRENCY_API_KEY}&base_currency=${fromCurrency}&currencies=${toCurrency}`,
+      `${FREECURRENCY_API_URL}?apikey=${apiKey}&base_currency=${fromCurrency}&currencies=${toCurrency}`,
       {
         cache: 'no-store', // Always fetch fresh rates at submission time
       }
@@ -55,20 +69,7 @@ export async function GET(request: Request) {
     console.error('Exchange rate API error:', error);
 
     // Return fallback rate
-    let fallbackRate = 1;
-
-    if (toCurrency === 'AED') {
-      // Converting TO AED
-      fallbackRate = FALLBACK_RATES[fromCurrency] || 1;
-    } else if (fromCurrency === 'AED') {
-      // Converting FROM AED
-      fallbackRate = 1 / (FALLBACK_RATES[toCurrency] || 1);
-    } else {
-      // Cross conversion via AED
-      const fromToAed = FALLBACK_RATES[fromCurrency] || 1;
-      const toToAed = FALLBACK_RATES[toCurrency] || 1;
-      fallbackRate = fromToAed / toToAed;
-    }
+    const fallbackRate = calculateFallbackRate(fromCurrency, toCurrency);
 
     return NextResponse.json({
       success: true,
@@ -80,4 +81,26 @@ export async function GET(request: Request) {
       warning: 'Using fallback rates due to API unavailability',
     });
   }
+}
+
+function calculateFallbackRate(
+  fromCurrency: SupportedCurrency,
+  toCurrency: SupportedCurrency
+): number {
+  let fallbackRate = 1;
+
+  if (toCurrency === 'AED') {
+    // Converting TO AED
+    fallbackRate = DEFAULT_EXCHANGE_RATES[fromCurrency] || 1;
+  } else if (fromCurrency === 'AED') {
+    // Converting FROM AED
+    fallbackRate = 1 / (DEFAULT_EXCHANGE_RATES[toCurrency] || 1);
+  } else {
+    // Cross conversion via AED
+    const fromToAed = DEFAULT_EXCHANGE_RATES[fromCurrency] || 1;
+    const toToAed = DEFAULT_EXCHANGE_RATES[toCurrency] || 1;
+    fallbackRate = fromToAed / toToAed;
+  }
+
+  return fallbackRate;
 }
