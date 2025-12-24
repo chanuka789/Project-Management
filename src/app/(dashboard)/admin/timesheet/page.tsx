@@ -80,9 +80,11 @@ export default function AdminTimesheetPage() {
         return end.toISOString().split('T')[0];
       })()
     : (() => {
-        const end = new Date(monthStart);
-        end.setMonth(end.getMonth() + 1);
-        end.setDate(end.getDate() - 1);
+        // Parse the monthStart string to avoid timezone issues
+        const [year, month] = monthStart.split('-').map(Number);
+        const end = new Date(year, month - 1, 1); // Start of current month
+        end.setMonth(end.getMonth() + 1); // Move to next month
+        end.setDate(end.getDate() - 1); // Go back one day to get last day of current month
         return end.toISOString().split('T')[0];
       })();
 
@@ -196,7 +198,9 @@ export default function AdminTimesheetPage() {
       current.setDate(current.getDate() + (direction === 'next' ? 7 : -7));
       setWeekStart(current.toISOString().split('T')[0]);
     } else {
-      const current = new Date(monthStart);
+      // Parse the monthStart string to avoid timezone issues
+      const [year, month] = monthStart.split('-').map(Number);
+      const current = new Date(year, month - 1, 1); // month is 0-indexed
       current.setMonth(current.getMonth() + (direction === 'next' ? 1 : -1));
       setMonthStart(new Date(current.getFullYear(), current.getMonth(), 1).toISOString().split('T')[0]);
     }
@@ -210,8 +214,10 @@ export default function AdminTimesheetPage() {
         return date.toISOString().split('T')[0];
       })
     : (() => {
-        const start = new Date(monthStart);
-        const end = new Date(monthStart);
+        // Parse the monthStart string to avoid timezone issues
+        const [year, month] = monthStart.split('-').map(Number);
+        const start = new Date(year, month - 1, 1);
+        const end = new Date(year, month - 1, 1);
         end.setMonth(end.getMonth() + 1);
         const days = [];
         for (let d = new Date(start); d < end; d.setDate(d.getDate() + 1)) {
