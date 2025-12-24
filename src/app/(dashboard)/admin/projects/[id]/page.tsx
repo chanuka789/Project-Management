@@ -17,6 +17,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { StatCard } from '@/components/ui/stat-card';
 import { PerformanceChart } from '@/components/charts/performance-chart';
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '@/components/ui/table';
+import { ReceiptUpload } from '@/components/receipts/receipt-upload';
+import { ReceiptList } from '@/components/receipts/receipt-list';
 import { formatCurrency, formatDate, calculateDaysRemaining, getProgressPercentage } from '@/lib/utils';
 import { useCompanySettings } from '@/hooks/use-company-settings';
 import { PasswordConfirmModal } from '@/components/ui/password-confirm-modal';
@@ -35,6 +37,7 @@ import {
   Building2,
   UserPlus,
   X,
+  FileText,
 } from 'lucide-react';
 import type { User, Project, Task, TimeEntry, AdditionalCost, SupportedCurrency } from '@/types/database';
 import { convertToAED, DEFAULT_EXCHANGE_RATES } from '@/lib/currency';
@@ -73,6 +76,7 @@ export default function ProjectDetailPage() {
   const [costToDelete, setCostToDelete] = useState<AdditionalCost | null>(null);
   const [removeUserModalOpen, setRemoveUserModalOpen] = useState(false);
   const [userToRemove, setUserToRemove] = useState<User | null>(null);
+  const [receiptRefreshTrigger, setReceiptRefreshTrigger] = useState(0);
   const supabase = createClient();
   const { companyName, logoUrl } = useCompanySettings();
 
@@ -632,6 +636,26 @@ export default function ProjectDetailPage() {
                 )}
               </TableBody>
             </Table>
+          </CardContent>
+        </Card>
+
+        {/* Payment Receipts */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5 text-[#0a5082]" />
+              Payment Receipts
+            </CardTitle>
+            <ReceiptUpload
+              projectId={projectId}
+              onUploadComplete={() => setReceiptRefreshTrigger(prev => prev + 1)}
+            />
+          </CardHeader>
+          <CardContent>
+            <ReceiptList
+              projectId={projectId}
+              refreshTrigger={receiptRefreshTrigger}
+            />
           </CardContent>
         </Card>
 
