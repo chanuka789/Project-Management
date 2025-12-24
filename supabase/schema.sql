@@ -177,6 +177,23 @@ BEGIN
 END $$;
 
 -- =====================================================
+-- PAYMENT_RECEIPTS TABLE (For storing uploaded receipt files)
+-- =====================================================
+CREATE TABLE IF NOT EXISTS payment_receipts (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    payment_id UUID REFERENCES payments(id) ON DELETE SET NULL,
+    file_name VARCHAR(255) NOT NULL,
+    file_path TEXT NOT NULL,
+    file_type VARCHAR(50) NOT NULL,
+    file_size INTEGER NOT NULL,
+    description TEXT,
+    uploaded_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW()),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW())
+);
+
+-- =====================================================
 -- INDEXES FOR PERFORMANCE
 -- =====================================================
 CREATE INDEX IF NOT EXISTS idx_projects_status ON projects(status);
@@ -194,6 +211,8 @@ CREATE INDEX IF NOT EXISTS idx_payments_client_id ON payments(client_id);
 CREATE INDEX IF NOT EXISTS idx_payments_status ON payments(status);
 CREATE INDEX IF NOT EXISTS idx_payments_payment_date ON payments(payment_date);
 CREATE INDEX IF NOT EXISTS idx_clients_name ON clients(name);
+CREATE INDEX IF NOT EXISTS idx_payment_receipts_project_id ON payment_receipts(project_id);
+CREATE INDEX IF NOT EXISTS idx_payment_receipts_payment_id ON payment_receipts(payment_id);
 
 -- =====================================================
 -- ROW LEVEL SECURITY (RLS) POLICIES
@@ -209,6 +228,7 @@ ALTER TABLE additional_costs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE company_settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE clients ENABLE ROW LEVEL SECURITY;
 ALTER TABLE payments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE payment_receipts ENABLE ROW LEVEL SECURITY;
 
 -- USERS POLICIES
 CREATE POLICY "Users can view all users" ON users
@@ -350,6 +370,17 @@ CREATE POLICY "Admins can manage payments" ON payments
         EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role = 'admin')
     );
 
+-- PAYMENT_RECEIPTS POLICIES
+CREATE POLICY "Admins can view payment receipts" ON payment_receipts
+    FOR SELECT USING (
+        EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role = 'admin')
+    );
+
+CREATE POLICY "Admins can manage payment receipts" ON payment_receipts
+    FOR ALL USING (
+        EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role = 'admin')
+    );
+
 -- =====================================================
 -- FUNCTIONS FOR AUTOMATIC TIMESTAMPS
 -- =====================================================
@@ -378,6 +409,9 @@ CREATE TRIGGER update_clients_updated_at BEFORE UPDATE ON clients
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 CREATE TRIGGER update_payments_updated_at BEFORE UPDATE ON payments
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_payment_receipts_updated_at BEFORE UPDATE ON payment_receipts
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- =====================================================

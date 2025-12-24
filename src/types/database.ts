@@ -127,6 +127,27 @@ export interface PaymentWithDetails extends Payment {
   client?: Client;
 }
 
+// Payment Receipts (uploaded files)
+export interface PaymentReceipt {
+  id: string;
+  project_id: string;
+  payment_id?: string;
+  file_name: string;
+  file_path: string;
+  file_type: string;
+  file_size: number;
+  description?: string;
+  uploaded_by?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PaymentReceiptWithDetails extends PaymentReceipt {
+  project?: Project;
+  payment?: Payment;
+  uploader?: User;
+}
+
 // User Payment Types (payments issued to team members)
 export type UserPaymentType = 'salary' | 'bonus' | 'reimbursement' | 'advance' | 'commission' | 'other';
 export type UserPaymentStatus = 'pending' | 'completed' | 'cancelled';
