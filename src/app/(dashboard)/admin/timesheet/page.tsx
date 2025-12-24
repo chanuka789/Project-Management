@@ -26,27 +26,38 @@ import {
   Trash2,
   Users,
   Filter,
+  User,
+  BarChart3,
 } from 'lucide-react';
-import type { User, Project, TimeEntry } from '@/types/database';
+import type { User as UserType, Project, TimeEntry } from '@/types/database';
 
 interface TimeEntryWithDetails extends TimeEntry {
-  users?: User;
+  users?: UserType;
   projects?: Project;
 }
 
+type TimePeriod = 'weekly' | 'monthly';
+type ViewType = 'user-wise' | 'team-wise';
+
 export default function AdminTimesheetPage() {
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [users, setUsers] = useState<User[]>([]);
+  const [currentUser, setCurrentUser] = useState<UserType | null>(null);
+  const [users, setUsers] = useState<UserType[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [timeEntries, setTimeEntries] = useState<TimeEntryWithDetails[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [filterUserId, setFilterUserId] = useState('all');
+  const [timePeriod, setTimePeriod] = useState<TimePeriod>('weekly');
+  const [viewType, setViewType] = useState<ViewType>('team-wise');
   const [weekStart, setWeekStart] = useState(() => {
     const now = new Date();
     const day = now.getDay();
     const diff = now.getDate() - day + (day === 0 ? -6 : 1);
     return new Date(now.setDate(diff)).toISOString().split('T')[0];
+  });
+  const [monthStart, setMonthStart] = useState(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
   });
   const [formData, setFormData] = useState({
     user_id: '',
@@ -59,6 +70,21 @@ export default function AdminTimesheetPage() {
   const [entryToDelete, setEntryToDelete] = useState<TimeEntryWithDetails | null>(null);
   const supabase = createClient();
   const { companyName, logoUrl } = useCompanySettings();
+
+  // Calculate period start and end based on selected period
+  const periodStart = timePeriod === 'weekly' ? weekStart : monthStart;
+  const periodEnd = timePeriod === 'weekly'
+    ? (() => {
+        const end = new Date(weekStart);
+        end.setDate(end.getDate() + 6);
+        return end.toISOString().split('T')[0];
+      })()
+    : (() => {
+        const end = new Date(monthStart);
+        end.setMonth(end.getMonth() + 1);
+        end.setDate(end.getDate() - 1);
+        return end.toISOString().split('T')[0];
+      })();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -87,15 +113,12 @@ export default function AdminTimesheetPage() {
           .order('name');
         setProjects(projectsData || []);
 
-        // Fetch time entries for current week
-        const weekEnd = new Date(weekStart);
-        weekEnd.setDate(weekEnd.getDate() + 6);
-
+        // Fetch time entries for current period
         const { data: entries } = await supabase
           .from('time_entries')
           .select('*, users(*), projects(*)')
-          .gte('date', weekStart)
-          .lte('date', weekEnd.toISOString().split('T')[0])
+          .gte('date', periodStart)
+          .lte('date', periodEnd)
           .order('date', { ascending: false });
 
         setTimeEntries(entries || []);
@@ -107,7 +130,7 @@ export default function AdminTimesheetPage() {
     };
 
     fetchData();
-  }, [supabase, weekStart]);
+  }, [supabase, periodStart, periodEnd]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -167,18 +190,35 @@ export default function AdminTimesheetPage() {
     setEntryToDelete(null);
   };
 
-  const changeWeek = (direction: 'prev' | 'next') => {
-    const current = new Date(weekStart);
-    current.setDate(current.getDate() + (direction === 'next' ? 7 : -7));
-    setWeekStart(current.toISOString().split('T')[0]);
+  const changePeriod = (direction: 'prev' | 'next') => {
+    if (timePeriod === 'weekly') {
+      const current = new Date(weekStart);
+      current.setDate(current.getDate() + (direction === 'next' ? 7 : -7));
+      setWeekStart(current.toISOString().split('T')[0]);
+    } else {
+      const current = new Date(monthStart);
+      current.setMonth(current.getMonth() + (direction === 'next' ? 1 : -1));
+      setMonthStart(new Date(current.getFullYear(), current.getMonth(), 1).toISOString().split('T')[0]);
+    }
   };
 
-  // Generate week days
-  const weekDays = Array.from({ length: 7 }, (_, i) => {
-    const date = new Date(weekStart);
-    date.setDate(date.getDate() + i);
-    return date.toISOString().split('T')[0];
-  });
+  // Generate period days
+  const periodDays = timePeriod === 'weekly'
+    ? Array.from({ length: 7 }, (_, i) => {
+        const date = new Date(weekStart);
+        date.setDate(date.getDate() + i);
+        return date.toISOString().split('T')[0];
+      })
+    : (() => {
+        const start = new Date(monthStart);
+        const end = new Date(monthStart);
+        end.setMonth(end.getMonth() + 1);
+        const days = [];
+        for (let d = new Date(start); d < end; d.setDate(d.getDate() + 1)) {
+          days.push(new Date(d).toISOString().split('T')[0]);
+        }
+        return days;
+      })();
 
   // Filter entries by user
   const filteredEntries = filterUserId === 'all'
@@ -187,7 +227,7 @@ export default function AdminTimesheetPage() {
 
   // Calculate daily hours per user
   const userDailyHours = users.reduce((acc, user) => {
-    acc[user.id] = weekDays.reduce((dayAcc, date) => {
+    acc[user.id] = periodDays.reduce((dayAcc, date) => {
       dayAcc[date] = timeEntries
         .filter(te => te.user_id === user.id && te.date === date)
         .reduce((sum, te) => sum + te.hours, 0);
@@ -196,24 +236,25 @@ export default function AdminTimesheetPage() {
     return acc;
   }, {} as Record<string, Record<string, number>>);
 
-  // Calculate total hours per user for the week
+  // Calculate total hours per user for the period
   const userTotalHours = users.reduce((acc, user) => {
     acc[user.id] = Object.values(userDailyHours[user.id] || {}).reduce((sum, h) => sum + h, 0);
     return acc;
   }, {} as Record<string, number>);
 
-  const totalWeekHours = Object.values(userTotalHours).reduce((sum, h) => sum + h, 0);
+  // Calculate total cost per user
+  const userTotalCost = users.reduce((acc, user) => {
+    acc[user.id] = (userTotalHours[user.id] || 0) * (user.hourly_rate || 0);
+    return acc;
+  }, {} as Record<string, number>);
 
-  // Get projects assigned to a specific user
-  const getProjectsForUser = async (userId: string) => {
-    const { data } = await supabase
-      .from('project_users')
-      .select('project_id')
-      .eq('user_id', userId);
+  const totalPeriodHours = Object.values(userTotalHours).reduce((sum, h) => sum + h, 0);
+  const totalPeriodCost = Object.values(userTotalCost).reduce((sum, c) => sum + c, 0);
 
-    const projectIds = data?.map(pu => pu.project_id) || [];
-    return projects.filter(p => projectIds.includes(p.id));
-  };
+  // Format period label
+  const periodLabel = timePeriod === 'weekly'
+    ? `${formatDate(periodStart)} - ${formatDate(periodEnd)}`
+    : new Date(monthStart).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
   const openAddModal = () => {
     setFormData({
@@ -244,7 +285,7 @@ export default function AdminTimesheetPage() {
           <div>
             <h2 className="text-2xl font-bold text-black">Team Timesheet</h2>
             <p className="text-gray-500 mt-1">
-              Manage and book hours for all team members
+              Manage and track team hours with detailed insights
             </p>
           </div>
           <Button onClick={openAddModal}>
@@ -253,182 +294,366 @@ export default function AdminTimesheetPage() {
           </Button>
         </div>
 
-        {/* Week Navigation */}
+        {/* Modern Filter Controls */}
+        <Card className="border-2 border-primary/10 bg-gradient-to-br from-primary/5 to-transparent">
+          <CardContent className="py-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Time Period Selector */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                  <Calendar className="h-4 w-4 text-primary" />
+                  Time Period
+                </label>
+                <div className="flex gap-2">
+                  <Button
+                    variant={timePeriod === 'weekly' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setTimePeriod('weekly')}
+                    className="flex-1"
+                  >
+                    <Clock className="h-4 w-4 mr-2" />
+                    Weekly
+                  </Button>
+                  <Button
+                    variant={timePeriod === 'monthly' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setTimePeriod('monthly')}
+                    className="flex-1"
+                  >
+                    <Calendar className="h-4 w-4 mr-2" />
+                    Monthly
+                  </Button>
+                </div>
+              </div>
+
+              {/* View Type Selector */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                  <BarChart3 className="h-4 w-4 text-primary" />
+                  View Type
+                </label>
+                <div className="flex gap-2">
+                  <Button
+                    variant={viewType === 'user-wise' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setViewType('user-wise')}
+                    className="flex-1"
+                  >
+                    <User className="h-4 w-4 mr-2" />
+                    User-Wise
+                  </Button>
+                  <Button
+                    variant={viewType === 'team-wise' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setViewType('team-wise')}
+                    className="flex-1"
+                  >
+                    <Users className="h-4 w-4 mr-2" />
+                    Team-Wise
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Period Navigation */}
         <Card>
           <CardContent className="py-4">
             <div className="flex items-center justify-between">
-              <Button variant="ghost" size="icon" onClick={() => changeWeek('prev')}>
+              <Button variant="ghost" size="icon" onClick={() => changePeriod('prev')}>
                 <ChevronLeft className="h-5 w-5" />
               </Button>
               <div className="text-center">
-                <p className="font-semibold text-black">
-                  {formatDate(weekStart)} - {formatDate(weekDays[6])}
+                <p className="font-semibold text-black text-lg">
+                  {periodLabel}
                 </p>
-                <p className="text-sm text-gray-500">
-                  Total Team Hours: <span className="font-medium text-primary">{totalWeekHours.toFixed(1)} hours</span>
-                </p>
+                <div className="flex items-center justify-center gap-4 mt-2 text-sm">
+                  <span className="text-gray-500">
+                    Total Hours: <span className="font-medium text-primary">{totalPeriodHours.toFixed(1)} hrs</span>
+                  </span>
+                  <span className="text-gray-400">•</span>
+                  <span className="text-gray-500">
+                    Total Cost: <span className="font-medium text-primary">{formatCurrencyWithCode(totalPeriodCost, 'AED')}</span>
+                  </span>
+                </div>
               </div>
-              <Button variant="ghost" size="icon" onClick={() => changeWeek('next')}>
+              <Button variant="ghost" size="icon" onClick={() => changePeriod('next')}>
                 <ChevronRight className="h-5 w-5" />
               </Button>
             </div>
           </CardContent>
         </Card>
 
-        {/* Team Hours Overview */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Users className="h-5 w-5 text-primary" />
-              Team Hours Overview
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr>
-                    <th className="text-left py-2 px-3 font-medium text-gray-500">Team Member</th>
-                    {weekDays.map(date => (
-                      <th key={date} className="text-center py-2 px-2 font-medium text-gray-500 min-w-16">
-                        <div className="text-xs">{new Date(date).toLocaleDateString('en-US', { weekday: 'short' })}</div>
-                        <div className="text-sm">{new Date(date).getDate()}</div>
-                      </th>
-                    ))}
-                    <th className="text-center py-2 px-3 font-medium text-gray-500">Total</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {users.map(user => {
-                    const hours = userDailyHours[user.id] || {};
-                    const total = userTotalHours[user.id] || 0;
-                    return (
-                      <tr key={user.id} className="border-t border-border">
-                        <td className="py-3 px-3">
-                          <div className="flex items-center gap-2">
-                            <Avatar name={user.full_name} size="sm" />
-                            <div>
-                              <p className="font-medium text-black text-sm">{user.full_name}</p>
-                              <p className="text-xs text-gray-500">{formatCurrencyWithCode(user.hourly_rate, user.hourly_rate_currency || 'AED')}/hr</p>
-                            </div>
-                          </div>
-                        </td>
-                        {weekDays.map(date => {
-                          const dayHours = hours[date] || 0;
-                          const isToday = date === new Date().toISOString().split('T')[0];
-                          return (
-                            <td key={date} className="text-center py-3 px-2">
-                              <div className={`text-sm font-medium rounded py-1 ${
-                                dayHours > 0
-                                  ? 'text-primary bg-primary/10'
-                                  : isToday
-                                    ? 'text-muted-foreground bg-muted'
-                                    : 'text-muted-foreground/50'
-                              }`}>
-                                {dayHours > 0 ? `${dayHours}h` : '-'}
+        {/* Team-Wise View */}
+        {viewType === 'team-wise' && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Users className="h-5 w-5 text-primary" />
+                Team Hours Overview
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr>
+                      <th className="text-left py-2 px-3 font-medium text-gray-500">Team Member</th>
+                      {timePeriod === 'weekly' && periodDays.map(date => (
+                        <th key={date} className="text-center py-2 px-2 font-medium text-gray-500 min-w-16">
+                          <div className="text-xs">{new Date(date).toLocaleDateString('en-US', { weekday: 'short' })}</div>
+                          <div className="text-sm">{new Date(date).getDate()}</div>
+                        </th>
+                      ))}
+                      <th className="text-center py-2 px-3 font-medium text-gray-500">Total Hrs</th>
+                      <th className="text-center py-2 px-3 font-medium text-gray-500">Total Cost</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {users.map(user => {
+                      const hours = userDailyHours[user.id] || {};
+                      const total = userTotalHours[user.id] || 0;
+                      const cost = userTotalCost[user.id] || 0;
+                      return (
+                        <tr key={user.id} className="border-t border-border">
+                          <td className="py-3 px-3">
+                            <div className="flex items-center gap-2">
+                              <Avatar name={user.full_name} size="sm" />
+                              <div>
+                                <p className="font-medium text-black text-sm">{user.full_name}</p>
+                                <p className="text-xs text-gray-500">{formatCurrencyWithCode(user.hourly_rate, user.hourly_rate_currency || 'AED')}/hr</p>
                               </div>
-                            </td>
+                            </div>
+                          </td>
+                          {timePeriod === 'weekly' && periodDays.map(date => {
+                            const dayHours = hours[date] || 0;
+                            const isToday = date === new Date().toISOString().split('T')[0];
+                            return (
+                              <td key={date} className="text-center py-3 px-2">
+                                <div className={`text-sm font-medium rounded py-1 ${
+                                  dayHours > 0
+                                    ? 'text-primary bg-primary/10'
+                                    : isToday
+                                      ? 'text-muted-foreground bg-muted'
+                                      : 'text-muted-foreground/50'
+                                }`}>
+                                  {dayHours > 0 ? `${dayHours}h` : '-'}
+                                </div>
+                              </td>
+                            );
+                          })}
+                          <td className="text-center py-3 px-3">
+                            <span className="font-semibold text-primary">{total.toFixed(1)}h</span>
+                          </td>
+                          <td className="text-center py-3 px-3">
+                            <span className="font-medium text-gray-700">{formatCurrencyWithCode(cost, user.hourly_rate_currency || 'AED')}</span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                    <tr className="border-t-2 border-primary/20 bg-primary/5 font-semibold">
+                      <td className="py-3 px-3">Total</td>
+                      {timePeriod === 'weekly' && periodDays.map(date => {
+                        const dayTotal = users.reduce((sum, u) => sum + (userDailyHours[u.id]?.[date] || 0), 0);
+                        return (
+                          <td key={date} className="text-center py-3 px-2">
+                            <span className="text-sm font-semibold text-primary">
+                              {dayTotal > 0 ? `${dayTotal}h` : '-'}
+                            </span>
+                          </td>
+                        );
+                      })}
+                      <td className="text-center py-3 px-3 text-primary">{totalPeriodHours.toFixed(1)}h</td>
+                      <td className="text-center py-3 px-3 text-primary">{formatCurrencyWithCode(totalPeriodCost, 'AED')}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* User-Wise View */}
+        {viewType === 'user-wise' && (
+          <div className="space-y-4">
+            {users.map(user => {
+              const userEntries = timeEntries.filter(te => te.user_id === user.id);
+              const totalHours = userTotalHours[user.id] || 0;
+              const totalCost = userTotalCost[user.id] || 0;
+
+              if (userEntries.length === 0) return null;
+
+              return (
+                <Card key={user.id} className="border-l-4 border-l-primary">
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <Avatar name={user.full_name} size="md" />
+                        <div>
+                          <CardTitle className="text-lg">{user.full_name}</CardTitle>
+                          <p className="text-sm text-gray-500">{formatCurrencyWithCode(user.hourly_rate, user.hourly_rate_currency || 'AED')}/hr</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-2xl font-bold text-primary">{totalHours.toFixed(1)}h</p>
+                        <p className="text-sm text-gray-500">{formatCurrencyWithCode(totalCost, user.hourly_rate_currency || 'AED')}</p>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Date</TableHead>
+                          <TableHead>Project</TableHead>
+                          <TableHead>Description</TableHead>
+                          <TableHead className="text-right">Hours</TableHead>
+                          <TableHead className="text-right">Cost</TableHead>
+                          <TableHead></TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {userEntries.map((entry) => {
+                          const cost = entry.hours * (user.hourly_rate || 0);
+                          return (
+                            <TableRow key={entry.id}>
+                              <TableCell>
+                                <div className="flex items-center gap-2">
+                                  <Calendar className="h-4 w-4 text-gray-400" />
+                                  {formatDate(entry.date)}
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <Badge variant="secondary">{entry.projects?.name}</Badge>
+                              </TableCell>
+                              <TableCell>
+                                {entry.description || <span className="text-gray-400">No description</span>}
+                              </TableCell>
+                              <TableCell className="text-right font-semibold text-primary">
+                                {entry.hours} hrs
+                              </TableCell>
+                              <TableCell className="text-right text-gray-600">
+                                {formatCurrencyWithCode(cost, user.hourly_rate_currency || 'AED')}
+                              </TableCell>
+                              <TableCell>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 text-red-500"
+                                  onClick={() => handleDeleteClick(entry)}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </TableCell>
+                            </TableRow>
                           );
                         })}
-                        <td className="text-center py-3 px-3">
-                          <span className="font-semibold text-primary">{total.toFixed(1)}h</span>
-                        </td>
-                      </tr>
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+              );
+            })}
+            {users.every(u => timeEntries.filter(te => te.user_id === u.id).length === 0) && (
+              <Card>
+                <CardContent className="py-12 text-center text-gray-500">
+                  No time entries for this period. Click &quot;Book Hours&quot; to add one.
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        )}
+
+        {/* Time Entries Table (for Team-Wise view) */}
+        {viewType === 'team-wise' && (
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <Clock className="h-5 w-5 text-primary" />
+                Time Entries This {timePeriod === 'weekly' ? 'Week' : 'Month'}
+              </CardTitle>
+              <div className="flex items-center gap-2">
+                <Filter className="h-4 w-4 text-gray-400" />
+                <Select
+                  value={filterUserId}
+                  onChange={(e) => setFilterUserId(e.target.value)}
+                  options={[
+                    { value: 'all', label: 'All Users' },
+                    ...users.map(u => ({ value: u.id, label: u.full_name })),
+                  ]}
+                  className="w-48"
+                />
+              </div>
+            </CardHeader>
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>User</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Project</TableHead>
+                    <TableHead>Description</TableHead>
+                    <TableHead className="text-right">Hours</TableHead>
+                    <TableHead className="text-right">Cost</TableHead>
+                    <TableHead></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredEntries.map((entry) => {
+                    const entryUser = users.find(u => u.id === entry.user_id);
+                    const cost = entry.hours * (entryUser?.hourly_rate || 0);
+                    return (
+                      <TableRow key={entry.id}>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Avatar name={entry.users?.full_name || 'Unknown'} size="sm" />
+                            <span className="text-sm font-medium">{entry.users?.full_name}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Calendar className="h-4 w-4 text-gray-400" />
+                            {formatDate(entry.date)}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="secondary">{entry.projects?.name}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          {entry.description || <span className="text-gray-400">No description</span>}
+                        </TableCell>
+                        <TableCell className="text-right font-semibold text-primary">
+                          {entry.hours} hrs
+                        </TableCell>
+                        <TableCell className="text-right text-gray-600">
+                          {formatCurrencyWithCode(cost, entryUser?.hourly_rate_currency || 'AED')}
+                        </TableCell>
+                        <TableCell>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-red-500"
+                            onClick={() => handleDeleteClick(entry)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
                     );
                   })}
-                </tbody>
-              </table>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Time Entries Table */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="flex items-center gap-2">
-              <Clock className="h-5 w-5 text-primary" />
-              Time Entries This Week
-            </CardTitle>
-            <div className="flex items-center gap-2">
-              <Filter className="h-4 w-4 text-gray-400" />
-              <Select
-                value={filterUserId}
-                onChange={(e) => setFilterUserId(e.target.value)}
-                options={[
-                  { value: 'all', label: 'All Users' },
-                  ...users.map(u => ({ value: u.id, label: u.full_name })),
-                ]}
-                className="w-48"
-              />
-            </div>
-          </CardHeader>
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>User</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Project</TableHead>
-                  <TableHead>Description</TableHead>
-                  <TableHead className="text-right">Hours</TableHead>
-                  <TableHead className="text-right">Cost</TableHead>
-                  <TableHead></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredEntries.map((entry) => {
-                  const entryUser = users.find(u => u.id === entry.user_id);
-                  const cost = entry.hours * (entryUser?.hourly_rate || 0);
-                  return (
-                    <TableRow key={entry.id}>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Avatar name={entry.users?.full_name || 'Unknown'} size="sm" />
-                          <span className="text-sm font-medium">{entry.users?.full_name}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Calendar className="h-4 w-4 text-gray-400" />
-                          {formatDate(entry.date)}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="secondary">{entry.projects?.name}</Badge>
-                      </TableCell>
-                      <TableCell>
-                        {entry.description || <span className="text-gray-400">No description</span>}
-                      </TableCell>
-                      <TableCell className="text-right font-semibold text-primary">
-                        {entry.hours} hrs
-                      </TableCell>
-                      <TableCell className="text-right text-gray-600">
-                        {formatCurrencyWithCode(cost, entryUser?.hourly_rate_currency || 'AED')}
-                      </TableCell>
-                      <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-red-500"
-                          onClick={() => handleDeleteClick(entry)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                  {filteredEntries.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center text-gray-500 py-8">
+                        No time entries this {timePeriod === 'weekly' ? 'week' : 'month'}. Click &quot;Book Hours&quot; to add one.
                       </TableCell>
                     </TableRow>
-                  );
-                })}
-                {filteredEntries.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={7} className="text-center text-gray-500 py-8">
-                      No time entries this week. Click &quot;Book Hours&quot; to add one.
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Add Time Entry Modal */}
         <Modal
