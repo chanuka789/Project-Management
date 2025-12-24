@@ -10,7 +10,8 @@ interface ModalProps {
   title?: string;
   description?: string;
   children: ReactNode;
-  size?: 'sm' | 'md' | 'lg' | 'xl';
+  size?: 'sm' | 'md' | 'lg' | 'xl' | 'full';
+  className?: string;
 }
 
 export function Modal({
@@ -20,6 +21,7 @@ export function Modal({
   description,
   children,
   size = 'md',
+  className,
 }: ModalProps) {
   if (!isOpen) return null;
 
@@ -28,6 +30,7 @@ export function Modal({
     md: 'max-w-lg',
     lg: 'max-w-2xl',
     xl: 'max-w-4xl',
+    full: 'max-w-7xl',
   };
 
   return (
@@ -43,7 +46,8 @@ export function Modal({
         <div
           className={cn(
             'relative w-full bg-card rounded-xl shadow-2xl animate-slide-up',
-            sizes[size]
+            sizes[size],
+            className
           )}
           onClick={(e) => e.stopPropagation()}
         >
