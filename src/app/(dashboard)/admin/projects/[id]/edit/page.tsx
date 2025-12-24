@@ -26,6 +26,7 @@ export default function EditProjectPage() {
   const [formData, setFormData] = useState({
     name: '',
     description: '',
+    location: '',
     client_name: '',
     status: 'planning',
     contract_value: '',
@@ -63,6 +64,7 @@ export default function EditProjectPage() {
           setFormData({
             name: projectData.name || '',
             description: projectData.description || '',
+            location: projectData.location || '',
             client_name: projectData.client_name || '',
             status: projectData.status || 'planning',
             contract_value: projectData.contract_value?.toString() || '',
@@ -100,6 +102,7 @@ export default function EditProjectPage() {
         .update({
           name: formData.name,
           description: formData.description || null,
+          location: formData.location || null,
           client_name: formData.client_name || null,
           status: formData.status,
           contract_value: contractValue,
@@ -191,6 +194,14 @@ export default function EditProjectPage() {
                   onChange={(e) => handleChange('description', e.target.value)}
                   placeholder="Describe the project objectives and scope"
                   rows={4}
+                />
+
+                <Textarea
+                  label="Location"
+                  value={formData.location}
+                  onChange={(e) => handleChange('location', e.target.value)}
+                  placeholder="Enter project location"
+                  rows={3}
                 />
 
                 <Input

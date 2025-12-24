@@ -50,6 +50,15 @@ BEGIN
     END IF;
 END $$;
 
+-- Add location column if not exists (migration for existing databases)
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                   WHERE table_name = 'projects' AND column_name = 'location') THEN
+        ALTER TABLE projects ADD COLUMN location TEXT;
+    END IF;
+END $$;
+
 -- =====================================================
 -- PROJECT_USERS TABLE (Many-to-Many)
 -- =====================================================

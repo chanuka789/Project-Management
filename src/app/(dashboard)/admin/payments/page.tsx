@@ -958,7 +958,6 @@ export default function PaymentsPage() {
               <div class="logo-container">
                 ${logoUrl ? `<img src="${logoUrl}" alt="Company Logo" />` : ''}
               </div>
-              <div class="company-name">${companyName || 'QS Global Solutions'}</div>
             </div>
           </div>
 
@@ -992,10 +991,10 @@ export default function PaymentsPage() {
                 <span class="info-label">Client</span>
                 <span class="info-value">${project.client_name || 'N/A'}</span>
               </div>
-              ${project.description ? `
+              ${project.location ? `
               <div class="info-row">
                 <span class="info-label">Location</span>
-                <span class="info-value">${project.description}</span>
+                <span class="info-value">${project.location}</span>
               </div>
               ` : ''}
             </div>
