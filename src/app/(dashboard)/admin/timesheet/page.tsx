@@ -306,7 +306,7 @@ export default function AdminTimesheetPage() {
                 </label>
                 <div className="flex gap-2">
                   <Button
-                    variant={timePeriod === 'weekly' ? 'default' : 'outline'}
+                    variant={timePeriod === 'weekly' ? 'primary' : 'outline'}
                     size="sm"
                     onClick={() => setTimePeriod('weekly')}
                     className="flex-1"
@@ -315,7 +315,7 @@ export default function AdminTimesheetPage() {
                     Weekly
                   </Button>
                   <Button
-                    variant={timePeriod === 'monthly' ? 'default' : 'outline'}
+                    variant={timePeriod === 'monthly' ? 'primary' : 'outline'}
                     size="sm"
                     onClick={() => setTimePeriod('monthly')}
                     className="flex-1"
@@ -334,7 +334,7 @@ export default function AdminTimesheetPage() {
                 </label>
                 <div className="flex gap-2">
                   <Button
-                    variant={viewType === 'user-wise' ? 'default' : 'outline'}
+                    variant={viewType === 'user-wise' ? 'primary' : 'outline'}
                     size="sm"
                     onClick={() => setViewType('user-wise')}
                     className="flex-1"
@@ -343,7 +343,7 @@ export default function AdminTimesheetPage() {
                     User-Wise
                   </Button>
                   <Button
-                    variant={viewType === 'team-wise' ? 'default' : 'outline'}
+                    variant={viewType === 'team-wise' ? 'primary' : 'outline'}
                     size="sm"
                     onClick={() => setViewType('team-wise')}
                     className="flex-1"
