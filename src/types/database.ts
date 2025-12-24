@@ -24,6 +24,7 @@ export interface Project {
   name: string;
   client_name?: string;
   description?: string;
+  location?: string;
   start_date: string;
   end_date: string;
   contract_value: number;

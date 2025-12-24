@@ -23,6 +23,7 @@ export default function NewProjectPage() {
     name: '',
     client_name: '',
     description: '',
+    location: '',
     start_date: new Date().toISOString().split('T')[0],
     end_date: '',
     contract_value: '',
@@ -78,6 +79,7 @@ export default function NewProjectPage() {
           name: formData.name,
           client_name: formData.client_name || null,
           description: formData.description || null,
+          location: formData.location || null,
           start_date: formData.start_date,
           end_date: formData.end_date,
           contract_value: contractValue,
@@ -171,6 +173,15 @@ export default function NewProjectPage() {
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 placeholder="Enter project description"
                 rows={4}
+              />
+
+              {/* Location */}
+              <Textarea
+                label="Location"
+                value={formData.location}
+                onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                placeholder="Enter project location"
+                rows={3}
               />
 
               {/* Dates */}
