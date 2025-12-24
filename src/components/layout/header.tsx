@@ -18,25 +18,22 @@ export function Header({ user, title, logoUrl, companyName }: HeaderProps) {
     <header className="sticky top-0 z-30 h-16 bg-card/95 backdrop-blur-sm border-b border-border flex items-center justify-between px-4 sm:px-6">
       {/* Left side - Company Branding */}
       <div className="flex items-center gap-3 sm:gap-4">
-        {/* Company Logo and Name - visible on mobile, only show when loaded */}
-        {companyName && (
+        {/* Company Logo - visible on mobile, only show when loaded */}
+        {(companyName || logoUrl) && (
           <div className="flex items-center gap-2 lg:hidden">
             {logoUrl ? (
               <img
                 src={logoUrl}
-                alt={companyName}
+                alt={companyName || 'Company Logo'}
                 className="h-8 w-8 object-contain"
               />
             ) : (
               <div className="h-8 w-8 rounded-lg gradient-primary flex items-center justify-center">
                 <span className="text-white font-bold text-sm">
-                  {companyName.substring(0, 2).toUpperCase()}
+                  {companyName?.substring(0, 2).toUpperCase() || 'QS'}
                 </span>
               </div>
             )}
-            <span className="text-sm font-semibold text-foreground truncate max-w-[100px] sm:max-w-[150px]">
-              {companyName}
-            </span>
           </div>
         )}
 
