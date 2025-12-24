@@ -5,7 +5,8 @@ import { createClient } from '@/lib/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { PasswordConfirmModal } from '@/components/ui/password-confirm-modal';
-import { FileText, Download, Trash2, Calendar, User } from 'lucide-react';
+import { FileViewer } from './file-viewer';
+import { FileText, Download, Trash2, Calendar, User, Eye } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 import type { PaymentReceiptWithDetails } from '@/types/database';
 
@@ -21,6 +22,8 @@ export function ReceiptList({ projectId, paymentId, showProjectInfo, refreshTrig
   const [isLoading, setIsLoading] = useState(true);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [receiptToDelete, setReceiptToDelete] = useState<PaymentReceiptWithDetails | null>(null);
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const [receiptToView, setReceiptToView] = useState<PaymentReceiptWithDetails | null>(null);
   const supabase = createClient();
 
   useEffect(() => {
@@ -73,6 +76,11 @@ export function ReceiptList({ projectId, paymentId, showProjectInfo, refreshTrig
       console.error('Error downloading file:', error);
       alert('Failed to download file');
     }
+  };
+
+  const handleView = (receipt: PaymentReceiptWithDetails) => {
+    setReceiptToView(receipt);
+    setViewerOpen(true);
   };
 
   const handleDeleteClick = (receipt: PaymentReceiptWithDetails) => {
@@ -174,6 +182,14 @@ export function ReceiptList({ projectId, paymentId, showProjectInfo, refreshTrig
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
                   <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={() => handleView(receipt)}
+                  >
+                    <Eye className="h-4 w-4 mr-1" />
+                    View
+                  </Button>
+                  <Button
                     variant="outline"
                     size="sm"
                     onClick={() => handleDownload(receipt)}
@@ -206,6 +222,17 @@ export function ReceiptList({ projectId, paymentId, showProjectInfo, refreshTrig
         description="This will permanently delete this receipt file."
         itemName={receiptToDelete?.file_name}
       />
+
+      {receiptToView && (
+        <FileViewer
+          receipt={receiptToView}
+          isOpen={viewerOpen}
+          onClose={() => {
+            setViewerOpen(false);
+            setReceiptToView(null);
+          }}
+        />
+      )}
     </>
   );
 }
