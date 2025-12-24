@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { Modal } from '@/components/ui/modal';
 import { Button } from '@/components/ui/button';
@@ -23,17 +23,36 @@ export function FileViewer({ receipt, isOpen, onClose }: FileViewerProps) {
   const isExcel = receipt.file_type.includes('excel') || receipt.file_type.includes('spreadsheet');
   const isWord = receipt.file_type.includes('word') || receipt.file_type.includes('document');
 
-  const handleOpen = async () => {
-    if (!fileUrl) {
-      setIsLoading(true);
-      const { data } = supabase.storage
-        .from('payment-receipts')
-        .getPublicUrl(receipt.file_path);
+  useEffect(() => {
+    if (!isOpen) return;
 
-      setFileUrl(data.publicUrl);
-      setIsLoading(false);
-    }
-  };
+    let isMounted = true;
+
+    const loadFile = async () => {
+      try {
+        setIsLoading(true);
+        const { data } = supabase.storage
+          .from('payment-receipts')
+          .getPublicUrl(receipt.file_path);
+
+        if (!isMounted) return;
+
+        setFileUrl(data.publicUrl);
+      } catch (error) {
+        console.error('Error loading file:', error);
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    loadFile();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isOpen, receipt.file_path, supabase]);
 
   const handleDownload = async () => {
     try {
@@ -56,11 +75,6 @@ export function FileViewer({ receipt, isOpen, onClose }: FileViewerProps) {
       alert('Failed to download file');
     }
   };
-
-  // Load file URL when modal opens
-  if (isOpen && !fileUrl && !isLoading) {
-    handleOpen();
-  }
 
   return (
     <Modal
@@ -130,7 +144,6 @@ export function FileViewer({ receipt, isOpen, onClose }: FileViewerProps) {
                   src={fileUrl}
                   className="w-full h-full border-0 animate-fade-in"
                   title={receipt.file_name}
-                  onLoad={() => setIsLoading(false)}
                 />
               ) : isExcel || isWord ? (
                 <div className="flex flex-col items-center justify-center h-full p-8 text-center animate-fade-in">
