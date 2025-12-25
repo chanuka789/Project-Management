@@ -45,6 +45,24 @@ export interface ProjectUser {
   assigned_at: string;
 }
 
+// Types for Supabase join queries (partial selects)
+// These handle the Supabase select() return types which are more permissive
+export interface ProjectUserWithProject {
+  project_id: string;
+  projects: Project | Project[];
+}
+
+export interface ProjectUserWithUser {
+  user_id: string;
+  project_id?: string;
+  users: User | User[];
+}
+
+export interface ProjectUserWithBoth extends ProjectUser {
+  projects: Project;
+  users: User;
+}
+
 export interface Task {
   id: string;
   project_id: string;

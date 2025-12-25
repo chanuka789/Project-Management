@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { DashboardLayout } from '@/components/layout/dashboard-layout';
@@ -25,7 +25,7 @@ import {
   Wallet,
   DollarSign,
 } from 'lucide-react';
-import type { User, Project, Task, TimeEntry, UserPayment, SupportedCurrency } from '@/types/database';
+import type { User, Project, Task, TimeEntry, UserPayment, SupportedCurrency, ProjectUserWithProject } from '@/types/database';
 import { formatCurrencyWithCode, DEFAULT_EXCHANGE_RATES, getCurrencyInfo } from '@/lib/currency';
 
 interface UserDashboardData {
@@ -47,7 +47,7 @@ export default function UserDashboard() {
   const [data, setData] = useState<UserDashboardData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const { companyName, logoUrl } = useCompanySettings();
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -125,7 +125,7 @@ export default function UserDashboard() {
           .reduce((sum, p) => sum + (p.amount_aed || p.amount), 0);
 
         setData({
-          assignedProjects: (projectUsers || []).map((pu) => pu.projects as unknown as Project).filter(Boolean),
+          assignedProjects: (projectUsers as ProjectUserWithProject[] || []).map((pu) => Array.isArray(pu.projects) ? pu.projects[0] : pu.projects).filter(Boolean),
           tasks: tasks || [],
           timeEntries: timeEntries || [],
           payments: userPayments,

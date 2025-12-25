@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
@@ -39,7 +39,7 @@ import {
   X,
   FileText,
 } from 'lucide-react';
-import type { User, Project, Task, TimeEntry, AdditionalCost, SupportedCurrency } from '@/types/database';
+import type { User, Project, Task, TimeEntry, AdditionalCost, SupportedCurrency, ProjectUserWithUser } from '@/types/database';
 import { convertToAED, DEFAULT_EXCHANGE_RATES } from '@/lib/currency';
 
 interface ProjectDetails extends Project {
@@ -77,7 +77,9 @@ export default function ProjectDetailPage() {
   const [removeUserModalOpen, setRemoveUserModalOpen] = useState(false);
   const [userToRemove, setUserToRemove] = useState<User | null>(null);
   const [receiptRefreshTrigger, setReceiptRefreshTrigger] = useState(0);
-  const supabase = createClient();
+  const [deleteTaskModalOpen, setDeleteTaskModalOpen] = useState(false);
+  const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
+  const supabase = useMemo(() => createClient(), []);
   const { companyName, logoUrl } = useCompanySettings();
 
   useEffect(() => {
@@ -138,7 +140,7 @@ export default function ProjectDetailPage() {
 
           setProject({
             ...projectData,
-            assigned_users: projectUsers?.map((pu) => pu.users as unknown as User).filter(Boolean) || [],
+            assigned_users: ((projectUsers as ProjectUserWithUser[]) || []).map((pu) => Array.isArray(pu.users) ? pu.users[0] : pu.users).filter(Boolean),
             tasks: tasks || [],
             time_entries: timeEntries || [],
             additional_costs: additionalCosts || [],
@@ -174,7 +176,7 @@ export default function ProjectDetailPage() {
     e.preventDefault();
     try {
       const { data: { user: authUser } } = await supabase.auth.getUser();
-      const { error } = await supabase.from('tasks').insert({
+      const { data: newTask, error } = await supabase.from('tasks').insert({
         project_id: projectId,
         title: taskForm.title,
         description: taskForm.description || null,
@@ -183,12 +185,16 @@ export default function ProjectDetailPage() {
         due_date: taskForm.due_date || null,
         status: 'pending',
         created_by: authUser?.id,
-      });
+      }).select().single();
 
       if (error) throw error;
 
-      // Refresh data
-      window.location.reload();
+      // Update state without reloading
+      if (newTask && project) {
+        setProject({ ...project, tasks: [newTask, ...project.tasks] });
+      }
+      setShowTaskModal(false);
+      setTaskForm({ title: '', description: '', assigned_to: '', priority: 'medium', due_date: '' });
     } catch (error) {
       console.error('Error adding task:', error);
     }
@@ -198,18 +204,22 @@ export default function ProjectDetailPage() {
     e.preventDefault();
     try {
       const { data: { user: authUser } } = await supabase.auth.getUser();
-      const { error } = await supabase.from('additional_costs').insert({
+      const { data: newCost, error } = await supabase.from('additional_costs').insert({
         project_id: projectId,
         description: costForm.description,
         amount: parseFloat(costForm.amount),
         date: costForm.date,
         created_by: authUser?.id,
-      });
+      }).select().single();
 
       if (error) throw error;
 
-      // Refresh data
-      window.location.reload();
+      // Update state without reloading
+      if (newCost && project) {
+        setProject({ ...project, additional_costs: [newCost, ...project.additional_costs] });
+      }
+      setShowCostModal(false);
+      setCostForm({ description: '', amount: '', date: new Date().toISOString().split('T')[0] });
     } catch (error) {
       console.error('Error adding cost:', error);
     }
@@ -221,15 +231,39 @@ export default function ProjectDetailPage() {
   };
 
   const handleDeleteCostConfirm = async () => {
-    if (!costToDelete) return;
+    if (!costToDelete || !project) return;
     const { error } = await supabase.from('additional_costs').delete().eq('id', costToDelete.id);
-    if (!error) window.location.reload();
+    if (!error) {
+      setProject({ ...project, additional_costs: project.additional_costs.filter(c => c.id !== costToDelete.id) });
+    }
     setCostToDelete(null);
   };
 
-  const handleUpdateTaskStatus = async (taskId: string, status: string) => {
+  const handleUpdateTaskStatus = async (taskId: string, status: Task['status']) => {
     const { error } = await supabase.from('tasks').update({ status }).eq('id', taskId);
-    if (!error) window.location.reload();
+    if (!error && project) {
+      setProject({
+        ...project,
+        tasks: project.tasks.map(t => t.id === taskId ? { ...t, status } : t)
+      });
+    }
+  };
+
+  const handleDeleteTaskClick = (task: Task) => {
+    setTaskToDelete(task);
+    setDeleteTaskModalOpen(true);
+  };
+
+  const handleDeleteTaskConfirm = async () => {
+    if (!taskToDelete || !project) return;
+    const { error } = await supabase.from('tasks').delete().eq('id', taskToDelete.id);
+    if (!error) {
+      setProject({
+        ...project,
+        tasks: project.tasks.filter(t => t.id !== taskToDelete.id)
+      });
+    }
+    setTaskToDelete(null);
   };
 
   const handleOpenUserModal = () => {
@@ -267,8 +301,12 @@ export default function ProjectDetailPage() {
         if (error) throw error;
       }
 
+      // Update state without reloading
+      if (project) {
+        const newAssignedUsers = allUsers.filter(u => selectedUserIds.includes(u.id));
+        setProject({ ...project, assigned_users: newAssignedUsers });
+      }
       setShowUserModal(false);
-      window.location.reload();
     } catch (error) {
       console.error('Error updating user assignments:', error);
       alert('Failed to update user assignments');
@@ -281,7 +319,7 @@ export default function ProjectDetailPage() {
   };
 
   const handleRemoveUserConfirm = async () => {
-    if (!userToRemove) return;
+    if (!userToRemove || !project) return;
     try {
       const { error } = await supabase
         .from('project_users')
@@ -290,7 +328,12 @@ export default function ProjectDetailPage() {
         .eq('user_id', userToRemove.id);
 
       if (error) throw error;
-      window.location.reload();
+
+      // Update state without reloading
+      setProject({
+        ...project,
+        assigned_users: project.assigned_users.filter(u => u.id !== userToRemove.id)
+      });
     } catch (error) {
       console.error('Error removing user:', error);
     }
@@ -558,7 +601,7 @@ export default function ProjectDetailPage() {
                       <TableCell>
                         <Select
                           value={task.status}
-                          onChange={(e) => handleUpdateTaskStatus(task.id, e.target.value)}
+                          onChange={(e) => handleUpdateTaskStatus(task.id, e.target.value as Task['status'])}
                           options={[
                             { value: 'pending', label: 'Pending' },
                             { value: 'in_progress', label: 'In Progress' },
@@ -568,7 +611,12 @@ export default function ProjectDetailPage() {
                         />
                       </TableCell>
                       <TableCell>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-red-500"
+                          onClick={() => handleDeleteTaskClick(task)}
+                        >
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </TableCell>
@@ -838,6 +886,19 @@ export default function ProjectDetailPage() {
           title="Remove Team Member"
           description="This will remove this user from the project. Their time entries will remain."
           itemName={userToRemove?.full_name}
+        />
+
+        {/* Password Confirmation Modal for Task Deletion */}
+        <PasswordConfirmModal
+          isOpen={deleteTaskModalOpen}
+          onClose={() => {
+            setDeleteTaskModalOpen(false);
+            setTaskToDelete(null);
+          }}
+          onConfirm={handleDeleteTaskConfirm}
+          title="Delete Task"
+          description="This will permanently delete this task."
+          itemName={taskToDelete?.title}
         />
       </div>
     </DashboardLayout>

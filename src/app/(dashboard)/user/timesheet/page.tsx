@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { DashboardLayout } from '@/components/layout/dashboard-layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -23,7 +23,7 @@ import {
   Save,
   Trash2,
 } from 'lucide-react';
-import type { User, Project, TimeEntry } from '@/types/database';
+import type { User, Project, TimeEntry, ProjectUserWithProject } from '@/types/database';
 
 export default function TimesheetPage() {
   const [user, setUser] = useState<User | null>(null);
@@ -46,7 +46,7 @@ export default function TimesheetPage() {
   });
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [entryToDelete, setEntryToDelete] = useState<(TimeEntry & { projects: Project }) | null>(null);
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
   const { companyName, logoUrl } = useCompanySettings();
 
   useEffect(() => {
@@ -68,7 +68,7 @@ export default function TimesheetPage() {
           .select('project_id, projects(*)')
           .eq('user_id', authUser.id);
 
-        setProjects((projectUsers || []).map((pu) => pu.projects as unknown as Project).filter(Boolean));
+        setProjects(((projectUsers as ProjectUserWithProject[]) || []).map((pu) => Array.isArray(pu.projects) ? pu.projects[0] : pu.projects).filter(Boolean));
 
         // Fetch time entries for current week
         const weekEnd = new Date(weekStart);
@@ -99,18 +99,22 @@ export default function TimesheetPage() {
       const { data: { user: authUser } } = await supabase.auth.getUser();
       if (!authUser) return;
 
-      const { error } = await supabase.from('time_entries').insert({
+      const { data: newEntry, error } = await supabase.from('time_entries').insert({
         user_id: authUser.id,
         project_id: formData.project_id,
         hours: parseFloat(formData.hours),
         description: formData.description || null,
         date: formData.date,
-      });
+      }).select('*, projects(*)').single();
 
       if (error) throw error;
 
-      // Refresh data
-      window.location.reload();
+      // Update state without reloading
+      if (newEntry) {
+        setTimeEntries([newEntry, ...timeEntries]);
+      }
+      setShowModal(false);
+      setFormData({ project_id: '', hours: '', description: '', date: new Date().toISOString().split('T')[0] });
     } catch (error) {
       console.error('Error adding time entry:', error);
       alert('Failed to add time entry');

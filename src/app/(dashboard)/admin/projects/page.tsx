@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { DashboardLayout } from '@/components/layout/dashboard-layout';
@@ -39,7 +39,8 @@ export default function ProjectsPage() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [projectToDelete, setProjectToDelete] = useState<Project | null>(null);
-  const supabase = createClient();
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const supabase = useMemo(() => createClient(), []);
   const { companyName, logoUrl } = useCompanySettings();
 
   useEffect(() => {
@@ -126,6 +127,32 @@ export default function ProjectsPage() {
       default: return 'secondary';
     }
   };
+
+  // Calculate actual progress based on time elapsed
+  const calculateProgress = (startDate: string, endDate: string, status: string) => {
+    if (status === 'completed') return 100;
+    if (status === 'cancelled') return 0;
+
+    const start = new Date(startDate).getTime();
+    const end = new Date(endDate).getTime();
+    const now = Date.now();
+
+    if (now < start) return 0;
+    if (now > end) return 100;
+
+    const total = end - start;
+    const elapsed = now - start;
+    return Math.round((elapsed / total) * 100);
+  };
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = () => setOpenMenuId(null);
+    if (openMenuId) {
+      document.addEventListener('click', handleClickOutside);
+      return () => document.removeEventListener('click', handleClickOutside);
+    }
+  }, [openMenuId]);
 
   if (isLoading) {
     return (
@@ -223,9 +250,44 @@ export default function ProjectsPage() {
                         </div>
                       </div>
                       <div className="relative">
-                        <button className="p-1 rounded hover:bg-gray-100 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                          className="p-1 rounded hover:bg-gray-100 opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setOpenMenuId(openMenuId === project.id ? null : project.id);
+                          }}
+                        >
                           <MoreVertical className="h-5 w-5 text-gray-400" />
                         </button>
+                        {openMenuId === project.id && (
+                          <div className="absolute right-0 top-8 w-40 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10">
+                            <Link
+                              href={`/admin/projects/${project.id}`}
+                              className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                            >
+                              <Eye className="h-4 w-4" />
+                              View Details
+                            </Link>
+                            <Link
+                              href={`/admin/projects/${project.id}/edit`}
+                              className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                            >
+                              <Edit className="h-4 w-4" />
+                              Edit Project
+                            </Link>
+                            <button
+                              className="flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 w-full"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setOpenMenuId(null);
+                                handleDeleteClick(project);
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                              Delete
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </CardHeader>
@@ -264,7 +326,7 @@ export default function ProjectsPage() {
                       </div>
                     </div>
 
-                    {/* Progress bar (placeholder - calculate from actual data) */}
+                    {/* Progress bar - calculated from actual time elapsed */}
                     <div>
                       <div className="flex justify-between text-sm mb-1">
                         <span className="text-gray-500">Progress</span>
@@ -278,7 +340,7 @@ export default function ProjectsPage() {
                         </span>
                       </div>
                       <Progress
-                        value={isCompleted ? 100 : Math.min(50, 100)}
+                        value={calculateProgress(project.start_date, project.end_date, project.status)}
                         size="sm"
                         variant={isOverdue ? 'warning' : isCompleted ? 'success' : 'default'}
                       />
