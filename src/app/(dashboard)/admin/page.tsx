@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { DashboardLayout } from '@/components/layout/dashboard-layout';
@@ -27,6 +27,12 @@ import {
 import type { User, Project, TimeEntry, SupportedCurrency } from '@/types/database';
 import { convertToAED, DEFAULT_EXCHANGE_RATES } from '@/lib/currency';
 
+interface ProjectCost {
+  projectId: string;
+  laborCost: number;
+  additionalCost: number;
+}
+
 interface DashboardData {
   totalProjects: number;
   activeProjects: number;
@@ -37,6 +43,8 @@ interface DashboardData {
   projects: Project[];
   users: User[];
   recentTimeEntries: TimeEntry[];
+  projectCosts: ProjectCost[];
+  projectHours: Map<string, number>;
 }
 
 export default function AdminDashboard() {
@@ -44,7 +52,7 @@ export default function AdminDashboard() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const { companyName, logoUrl } = useCompanySettings();
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -82,7 +90,12 @@ export default function AdminDashboard() {
         // Get additional costs
         const { data: additionalCosts } = await supabase
           .from('additional_costs')
-          .select('amount');
+          .select('amount, project_id');
+
+        // Get all time entries with user rates for per-project cost calculation
+        const { data: allTimeEntries } = await supabase
+          .from('time_entries')
+          .select('hours, user_id, project_id');
 
         // Calculate metrics
         const totalProjects = projects?.length || 0;
@@ -96,6 +109,35 @@ export default function AdminDashboard() {
         const totalCosts = laborCosts + additionalCostTotal;
         const totalProfit = totalContractValue - totalCosts;
 
+        // Calculate per-project costs
+        const userRatesAed = new Map((users || []).map((u) => {
+          const hourlyRate = u.hourly_rate || 0;
+          const rateCurrency = (u.hourly_rate_currency as SupportedCurrency) || 'AED';
+          const rateInAed = rateCurrency === 'AED'
+            ? hourlyRate
+            : convertToAED(hourlyRate, rateCurrency, DEFAULT_EXCHANGE_RATES[rateCurrency]);
+          return [u.id, rateInAed];
+        }));
+
+        const projectCosts: ProjectCost[] = (projects || []).map((project) => {
+          const projectTimeEntries = (allTimeEntries || []).filter(te => te.project_id === project.id);
+          const laborCost = projectTimeEntries.reduce((sum, te) => {
+            const rate = userRatesAed.get(te.user_id) || 0;
+            return sum + (te.hours * rate);
+          }, 0);
+          const additionalCost = (additionalCosts || [])
+            .filter(c => c.project_id === project.id)
+            .reduce((sum, c) => sum + (c.amount || 0), 0);
+          return { projectId: project.id, laborCost, additionalCost };
+        });
+
+        // Calculate per-project hours for performance chart
+        const projectHours = new Map<string, number>();
+        (allTimeEntries || []).forEach((te) => {
+          const current = projectHours.get(te.project_id) || 0;
+          projectHours.set(te.project_id, current + te.hours);
+        });
+
         setData({
           totalProjects,
           activeProjects,
@@ -106,6 +148,8 @@ export default function AdminDashboard() {
           projects: projects || [],
           users: users || [],
           recentTimeEntries: timeEntries || [],
+          projectCosts,
+          projectHours,
         });
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
@@ -132,18 +176,31 @@ export default function AdminDashboard() {
     );
   }
 
-  // Sample chart data (in production, calculate from real data)
-  const performanceData = data?.projects.slice(0, 5).map(p => ({
-    name: p.name.length > 15 ? p.name.slice(0, 15) + '...' : p.name,
-    planned: Math.floor(Math.random() * 500) + 200,
-    actual: Math.floor(Math.random() * 500) + 200,
-  })) || [];
+  // Performance chart - actual hours logged per project
+  const performanceData = data?.projects.slice(0, 5).map(p => {
+    const actualHours = data.projectHours.get(p.id) || 0;
+    // Estimate planned hours based on project duration and contract value
+    const startDate = new Date(p.start_date);
+    const endDate = new Date(p.end_date);
+    const durationDays = Math.max(1, Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)));
+    const plannedHours = Math.round(durationDays * 8 * 0.3); // Estimate 30% of work days
+    return {
+      name: p.name.length > 15 ? p.name.slice(0, 15) + '...' : p.name,
+      planned: plannedHours,
+      actual: Math.round(actualHours),
+    };
+  }) || [];
 
-  const financeData = data?.projects.slice(0, 6).map(p => ({
-    name: p.name.length > 10 ? p.name.slice(0, 10) + '...' : p.name,
-    revenue: p.contract_value || 0,
-    cost: (p.contract_value || 0) * 0.7,
-  })) || [];
+  // Finance chart - actual costs calculated from time entries and additional costs
+  const financeData = data?.projects.slice(0, 6).map(p => {
+    const projectCost = data.projectCosts.find(pc => pc.projectId === p.id);
+    const totalCost = (projectCost?.laborCost || 0) + (projectCost?.additionalCost || 0);
+    return {
+      name: p.name.length > 10 ? p.name.slice(0, 10) + '...' : p.name,
+      revenue: p.contract_value || 0,
+      cost: Math.round(totalCost),
+    };
+  }) || [];
 
   const profitMargin = data?.totalContractValue
     ? ((data.totalProfit / data.totalContractValue) * 100).toFixed(1)

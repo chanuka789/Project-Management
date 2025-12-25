@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
@@ -29,7 +29,7 @@ import {
   FolderKanban,
   Edit,
 } from 'lucide-react';
-import type { User, Project, TimeEntry, Task } from '@/types/database';
+import type { User, Project, TimeEntry, Task, ProjectUserWithProject } from '@/types/database';
 
 interface UserDetails extends User {
   assigned_projects: Project[];
@@ -45,7 +45,7 @@ export default function UserDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
   const { companyName, logoUrl } = useCompanySettings();
 
   const fetchData = async () => {
@@ -90,7 +90,7 @@ export default function UserDetailPage() {
 
         setUserDetails({
           ...userData,
-          assigned_projects: projectUsers?.map((pu) => pu.projects as unknown as Project).filter(Boolean) || [],
+          assigned_projects: ((projectUsers as ProjectUserWithProject[]) || []).map((pu) => Array.isArray(pu.projects) ? pu.projects[0] : pu.projects).filter(Boolean),
           time_entries: timeEntries || [],
           tasks: tasks || [],
         });

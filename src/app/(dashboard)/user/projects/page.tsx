@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { DashboardLayout } from '@/components/layout/dashboard-layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,7 +16,7 @@ import {
   ClipboardList,
   Users,
 } from 'lucide-react';
-import type { User, Project, Task, TimeEntry } from '@/types/database';
+import type { User, Project, Task, TimeEntry, ProjectUserWithProject, ProjectUserWithUser } from '@/types/database';
 
 interface ProjectWithDetails extends Project {
   tasks: Task[];
@@ -29,7 +29,7 @@ export default function UserProjectsPage() {
   const [projects, setProjects] = useState<ProjectWithDetails[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { companyName, logoUrl } = useCompanySettings();
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -73,15 +73,18 @@ export default function UserProjectsPage() {
             .in('project_id', projectIds);
 
           // Combine data
-          const projectsWithDetails = (projectUsers || []).map((pu) => ({
-            ...(pu.projects as unknown as Project),
-            tasks: (tasks || []).filter(t => t.project_id === pu.project_id),
-            time_entries: (timeEntries || []).filter(te => te.project_id === pu.project_id),
-            team_members: (allProjectUsers || [])
-              .filter((apu) => apu.project_id === pu.project_id)
-              .map((apu) => apu.users as unknown as User)
-              .filter(Boolean),
-          }));
+          const projectsWithDetails = ((projectUsers as ProjectUserWithProject[]) || []).map((pu) => {
+            const project = Array.isArray(pu.projects) ? pu.projects[0] : pu.projects;
+            return {
+              ...project,
+              tasks: (tasks || []).filter(t => t.project_id === pu.project_id),
+              time_entries: (timeEntries || []).filter(te => te.project_id === pu.project_id),
+              team_members: ((allProjectUsers as ProjectUserWithUser[]) || [])
+                .filter((apu) => apu.project_id === pu.project_id)
+                .map((apu) => Array.isArray(apu.users) ? apu.users[0] : apu.users)
+                .filter(Boolean),
+            };
+          });
 
           setProjects(projectsWithDetails);
         }

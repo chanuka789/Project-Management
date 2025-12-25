@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { DashboardLayout } from '@/components/layout/dashboard-layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -68,7 +68,7 @@ export default function AdminTimesheetPage() {
   });
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [entryToDelete, setEntryToDelete] = useState<TimeEntryWithDetails | null>(null);
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
   const { companyName, logoUrl } = useCompanySettings();
 
   // Calculate period start and end based on selected period
@@ -149,13 +149,13 @@ export default function AdminTimesheetPage() {
         return;
       }
 
-      const { data, error } = await supabase.from('time_entries').insert({
+      const { data: newEntry, error } = await supabase.from('time_entries').insert({
         user_id: formData.user_id,
         project_id: formData.project_id,
         hours: hours,
         description: formData.description || null,
         date: formData.date,
-      }).select();
+      }).select('*, users(*), projects(*)').single();
 
       if (error) {
         console.error('Supabase error:', error);
@@ -168,9 +168,12 @@ export default function AdminTimesheetPage() {
         return;
       }
 
-      // Close modal and refresh data
+      // Update state without reloading
+      if (newEntry) {
+        setTimeEntries([newEntry, ...timeEntries]);
+      }
       setShowModal(false);
-      window.location.reload();
+      setFormData({ user_id: '', project_id: '', hours: '', description: '', date: new Date().toISOString().split('T')[0] });
     } catch (error: any) {
       console.error('Error adding time entry:', error);
       alert(`Failed to add time entry: ${error?.message || 'Unknown error'}`);
