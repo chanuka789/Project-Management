@@ -75,17 +75,17 @@ export default function AdminTimesheetPage() {
   const periodStart = timePeriod === 'weekly' ? weekStart : monthStart;
   const periodEnd = timePeriod === 'weekly'
     ? (() => {
-        const end = new Date(weekStart);
-        end.setDate(end.getDate() + 6);
-        return end.toISOString().split('T')[0];
+        const [year, monthNum, day] = weekStart.split('-').map(Number);
+        const end = new Date(year, monthNum - 1, day + 6);
+        // Format without timezone conversion
+        return `${end.getFullYear()}-${String(end.getMonth() + 1).padStart(2, '0')}-${String(end.getDate()).padStart(2, '0')}`;
       })()
     : (() => {
         // Parse the monthStart string to avoid timezone issues
         const [year, month] = monthStart.split('-').map(Number);
-        const end = new Date(year, month - 1, 1); // Start of current month
-        end.setMonth(end.getMonth() + 1); // Move to next month
-        end.setDate(end.getDate() - 1); // Go back one day to get last day of current month
-        return end.toISOString().split('T')[0];
+        // Get last day of month
+        const lastDay = new Date(year, month, 0).getDate();
+        return `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
       })();
 
   useEffect(() => {
@@ -197,36 +197,50 @@ export default function AdminTimesheetPage() {
 
   const changePeriod = (direction: 'prev' | 'next') => {
     if (timePeriod === 'weekly') {
-      const current = new Date(weekStart);
+      const [year, monthNum, day] = weekStart.split('-').map(Number);
+      const current = new Date(year, monthNum - 1, day);
       current.setDate(current.getDate() + (direction === 'next' ? 7 : -7));
-      setWeekStart(current.toISOString().split('T')[0]);
+      // Format without timezone conversion
+      const newYear = current.getFullYear();
+      const newMonth = String(current.getMonth() + 1).padStart(2, '0');
+      const newDay = String(current.getDate()).padStart(2, '0');
+      setWeekStart(`${newYear}-${newMonth}-${newDay}`);
     } else {
       // Parse the monthStart string to avoid timezone issues
       const [year, month] = monthStart.split('-').map(Number);
-      const current = new Date(year, month - 1, 1); // month is 0-indexed
-      current.setMonth(current.getMonth() + (direction === 'next' ? 1 : -1));
-      setMonthStart(new Date(current.getFullYear(), current.getMonth(), 1).toISOString().split('T')[0]);
+      // Calculate new month and year
+      let newMonth = month + (direction === 'next' ? 1 : -1);
+      let newYear = year;
+      if (newMonth > 12) {
+        newMonth = 1;
+        newYear++;
+      } else if (newMonth < 1) {
+        newMonth = 12;
+        newYear--;
+      }
+      // Format without timezone conversion
+      setMonthStart(`${newYear}-${String(newMonth).padStart(2, '0')}-01`);
     }
   };
 
-  // Generate period days
+  // Generate period days - using local date formatting to avoid timezone issues
+  const formatLocalDate = (date: Date) => {
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  };
+
   const periodDays = timePeriod === 'weekly'
     ? Array.from({ length: 7 }, (_, i) => {
-        const date = new Date(weekStart);
-        date.setDate(date.getDate() + i);
-        return date.toISOString().split('T')[0];
+        const [year, monthNum, day] = weekStart.split('-').map(Number);
+        const date = new Date(year, monthNum - 1, day + i);
+        return formatLocalDate(date);
       })
     : (() => {
         // Parse the monthStart string to avoid timezone issues
         const [year, month] = monthStart.split('-').map(Number);
-        const start = new Date(year, month - 1, 1);
-        const end = new Date(year, month - 1, 1);
-        end.setMonth(end.getMonth() + 1);
-        const days = [];
-        for (let d = new Date(start); d < end; d.setDate(d.getDate() + 1)) {
-          days.push(new Date(d).toISOString().split('T')[0]);
-        }
-        return days;
+        const daysInMonth = new Date(year, month, 0).getDate();
+        return Array.from({ length: daysInMonth }, (_, i) => {
+          return `${year}-${String(month).padStart(2, '0')}-${String(i + 1).padStart(2, '0')}`;
+        });
       })();
 
   // Filter entries by user
