@@ -235,33 +235,38 @@ CREATE POLICY "Users can view all users" ON users
     FOR SELECT USING (true);
 
 CREATE POLICY "Users can update own profile" ON users
-    FOR UPDATE USING (auth.uid() = id);
+    FOR UPDATE
+    USING ((select auth.uid()) = id)
+    WITH CHECK ((select auth.uid()) = id);
 
 CREATE POLICY "Admins can update any user" ON users
     FOR UPDATE USING (
-        EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role = 'admin')
+        EXISTS (SELECT 1 FROM users WHERE id = (select auth.uid()) AND role = 'admin')
+    )
+    WITH CHECK (
+        EXISTS (SELECT 1 FROM users WHERE id = (select auth.uid()) AND role = 'admin')
     );
 
 CREATE POLICY "Admins can delete users" ON users
     FOR DELETE USING (
-        EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role = 'admin')
+        EXISTS (SELECT 1 FROM users WHERE id = (select auth.uid()) AND role = 'admin')
     );
 
 CREATE POLICY "New users can insert their profile" ON users
-    FOR INSERT WITH CHECK (auth.uid() = id);
+    FOR INSERT WITH CHECK ((select auth.uid()) = id);
 
 -- PROJECTS POLICIES
 CREATE POLICY "Users can view assigned projects" ON projects
     FOR SELECT USING (
-        EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role = 'admin')
+        EXISTS (SELECT 1 FROM users WHERE id = (select auth.uid()) AND role = 'admin')
         OR
-        EXISTS (SELECT 1 FROM project_users WHERE project_id = projects.id AND user_id = auth.uid())
+        EXISTS (SELECT 1 FROM project_users WHERE project_id = projects.id AND user_id = (select auth.uid()))
     );
 
 CREATE POLICY "Admins can manage projects" ON projects
     FOR ALL
-    USING (EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role = 'admin'))
-    WITH CHECK (EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role = 'admin'));
+    USING (EXISTS (SELECT 1 FROM users WHERE id = (select auth.uid()) AND role = 'admin'))
+    WITH CHECK (EXISTS (SELECT 1 FROM users WHERE id = (select auth.uid()) AND role = 'admin'));
 
 -- PROJECT_USERS POLICIES
 CREATE POLICY "View project assignments" ON project_users
@@ -269,46 +274,54 @@ CREATE POLICY "View project assignments" ON project_users
 
 CREATE POLICY "Admins can manage project assignments" ON project_users
     FOR ALL USING (
-        EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role = 'admin')
+        EXISTS (SELECT 1 FROM users WHERE id = (select auth.uid()) AND role = 'admin')
+    )
+    WITH CHECK (
+        EXISTS (SELECT 1 FROM users WHERE id = (select auth.uid()) AND role = 'admin')
     );
 
 -- TASKS POLICIES
 CREATE POLICY "View tasks" ON tasks
     FOR SELECT USING (
-        EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role = 'admin')
-        OR assigned_to = auth.uid()
-        OR EXISTS (SELECT 1 FROM project_users WHERE project_id = tasks.project_id AND user_id = auth.uid())
+        EXISTS (SELECT 1 FROM users WHERE id = (select auth.uid()) AND role = 'admin')
+        OR assigned_to = (select auth.uid())
+        OR EXISTS (SELECT 1 FROM project_users WHERE project_id = tasks.project_id AND user_id = (select auth.uid()))
     );
 
 CREATE POLICY "Users can update assigned tasks" ON tasks
     FOR UPDATE USING (
-        assigned_to = auth.uid()
-        OR EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role = 'admin')
+        assigned_to = (select auth.uid())
+    )
+    WITH CHECK (
+        assigned_to = (select auth.uid())
     );
 
 CREATE POLICY "Admins can manage tasks" ON tasks
     FOR ALL USING (
-        EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role = 'admin')
+        EXISTS (SELECT 1 FROM users WHERE id = (select auth.uid()) AND role = 'admin')
+    )
+    WITH CHECK (
+        EXISTS (SELECT 1 FROM users WHERE id = (select auth.uid()) AND role = 'admin')
     );
 
 -- TIME_ENTRIES POLICIES
 CREATE POLICY "View time entries" ON time_entries
     FOR SELECT USING (
-        user_id = auth.uid()
-        OR EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role = 'admin')
+        user_id = (select auth.uid())
+        OR EXISTS (SELECT 1 FROM users WHERE id = (select auth.uid()) AND role = 'admin')
     );
 
 CREATE POLICY "Users can manage own time entries" ON time_entries
-    FOR ALL USING (user_id = auth.uid())
-    WITH CHECK (user_id = auth.uid());
+    FOR ALL USING (user_id = (select auth.uid()))
+    WITH CHECK (user_id = (select auth.uid()));
 
 -- Admin policy with explicit WITH CHECK for INSERT operations
 CREATE POLICY "Admins can manage all time entries" ON time_entries
     FOR ALL USING (
-        EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role = 'admin')
+        EXISTS (SELECT 1 FROM users WHERE id = (select auth.uid()) AND role = 'admin')
     )
     WITH CHECK (
-        EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role = 'admin')
+        EXISTS (SELECT 1 FROM users WHERE id = (select auth.uid()) AND role = 'admin')
     );
 
 -- =====================================================
@@ -328,69 +341,68 @@ CREATE POLICY "Admins can manage all time entries" ON time_entries
 --     WITH CHECK (EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role = 'admin'));
 -- =====================================================
 
--- ADDITIONAL_COSTS POLICIES
-CREATE POLICY "View additional costs" ON additional_costs
-    FOR SELECT USING (
-        EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role = 'admin')
-    );
-
+-- ADDITIONAL_COSTS POLICIES (consolidated into single policy)
 CREATE POLICY "Admins can manage additional costs" ON additional_costs
     FOR ALL USING (
-        EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role = 'admin')
+        EXISTS (SELECT 1 FROM users WHERE id = (select auth.uid()) AND role = 'admin')
+    )
+    WITH CHECK (
+        EXISTS (SELECT 1 FROM users WHERE id = (select auth.uid()) AND role = 'admin')
     );
 
 -- COMPANY_SETTINGS POLICIES
 CREATE POLICY "Everyone can view company settings" ON company_settings
     FOR SELECT USING (true);
 
-CREATE POLICY "Admins can update company settings" ON company_settings
+CREATE POLICY "Admins can manage company settings" ON company_settings
     FOR ALL USING (
-        EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role = 'admin')
+        EXISTS (SELECT 1 FROM users WHERE id = (select auth.uid()) AND role = 'admin')
+    )
+    WITH CHECK (
+        EXISTS (SELECT 1 FROM users WHERE id = (select auth.uid()) AND role = 'admin')
     );
 
--- CLIENTS POLICIES
-CREATE POLICY "Admins can view clients" ON clients
-    FOR SELECT USING (
-        EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role = 'admin')
-    );
-
+-- CLIENTS POLICIES (consolidated into single policy)
 CREATE POLICY "Admins can manage clients" ON clients
     FOR ALL USING (
-        EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role = 'admin')
+        EXISTS (SELECT 1 FROM users WHERE id = (select auth.uid()) AND role = 'admin')
+    )
+    WITH CHECK (
+        EXISTS (SELECT 1 FROM users WHERE id = (select auth.uid()) AND role = 'admin')
     );
 
--- PAYMENTS POLICIES
-CREATE POLICY "Admins can view payments" ON payments
-    FOR SELECT USING (
-        EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role = 'admin')
-    );
-
+-- PAYMENTS POLICIES (consolidated into single policy)
 CREATE POLICY "Admins can manage payments" ON payments
     FOR ALL USING (
-        EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role = 'admin')
+        EXISTS (SELECT 1 FROM users WHERE id = (select auth.uid()) AND role = 'admin')
+    )
+    WITH CHECK (
+        EXISTS (SELECT 1 FROM users WHERE id = (select auth.uid()) AND role = 'admin')
     );
 
--- PAYMENT_RECEIPTS POLICIES
-CREATE POLICY "Admins can view payment receipts" ON payment_receipts
-    FOR SELECT USING (
-        EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role = 'admin')
-    );
-
+-- PAYMENT_RECEIPTS POLICIES (consolidated into single policy)
 CREATE POLICY "Admins can manage payment receipts" ON payment_receipts
     FOR ALL USING (
-        EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role = 'admin')
+        EXISTS (SELECT 1 FROM users WHERE id = (select auth.uid()) AND role = 'admin')
+    )
+    WITH CHECK (
+        EXISTS (SELECT 1 FROM users WHERE id = (select auth.uid()) AND role = 'admin')
     );
 
 -- =====================================================
 -- FUNCTIONS FOR AUTOMATIC TIMESTAMPS
 -- =====================================================
 CREATE OR REPLACE FUNCTION update_updated_at_column()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = ''
+AS $$
 BEGIN
     NEW.updated_at = TIMEZONE('utc', NOW());
     RETURN NEW;
 END;
-$$ language 'plpgsql';
+$$;
 
 -- Apply trigger to tables with updated_at
 CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users
