@@ -29,20 +29,22 @@ CREATE TABLE IF NOT EXISTS user_payments (
 -- Enable RLS on user_payments table
 ALTER TABLE user_payments ENABLE ROW LEVEL SECURITY;
 
--- User payments policies - admins can view and manage
-CREATE POLICY "Admins can view user payments" ON user_payments
+-- User payments policies - consolidated with optimized auth calls
+-- Single SELECT policy for both users and admins
+CREATE POLICY "View user payments" ON user_payments
     FOR SELECT USING (
-        EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role = 'admin')
+        user_id = (select auth.uid())
+        OR EXISTS (SELECT 1 FROM users WHERE id = (select auth.uid()) AND role = 'admin')
     );
 
+-- Admin management policy for non-SELECT operations
 CREATE POLICY "Admins can manage user payments" ON user_payments
     FOR ALL USING (
-        EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role = 'admin')
+        EXISTS (SELECT 1 FROM users WHERE id = (select auth.uid()) AND role = 'admin')
+    )
+    WITH CHECK (
+        EXISTS (SELECT 1 FROM users WHERE id = (select auth.uid()) AND role = 'admin')
     );
-
--- Users can view their own payments
-CREATE POLICY "Users can view own payments" ON user_payments
-    FOR SELECT USING (user_id = auth.uid());
 
 -- Create indexes for performance
 CREATE INDEX IF NOT EXISTS idx_user_payments_user_id ON user_payments(user_id);

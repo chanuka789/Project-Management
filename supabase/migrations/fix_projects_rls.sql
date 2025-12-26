@@ -9,11 +9,11 @@
 -- Drop existing "Admins can manage projects" policy
 DROP POLICY IF EXISTS "Admins can manage projects" ON projects;
 
--- Recreate with proper WITH CHECK clause
+-- Recreate with proper WITH CHECK clause and optimized auth call
 CREATE POLICY "Admins can manage projects" ON projects
     FOR ALL
-    USING (EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role = 'admin'))
-    WITH CHECK (EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role = 'admin'));
+    USING (EXISTS (SELECT 1 FROM users WHERE id = (select auth.uid()) AND role = 'admin'))
+    WITH CHECK (EXISTS (SELECT 1 FROM users WHERE id = (select auth.uid()) AND role = 'admin'));
 
 -- Verify the policies were created
 SELECT schemaname, tablename, policyname, permissive, roles, cmd, qual, with_check

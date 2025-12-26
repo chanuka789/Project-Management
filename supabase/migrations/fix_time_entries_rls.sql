@@ -10,15 +10,15 @@
 DROP POLICY IF EXISTS "Users can manage own time entries" ON time_entries;
 DROP POLICY IF EXISTS "Admins can manage all time entries" ON time_entries;
 
--- Recreate with proper WITH CHECK clauses
+-- Recreate with proper WITH CHECK clauses and optimized auth calls
 CREATE POLICY "Users can manage own time entries" ON time_entries
-    FOR ALL USING (user_id = auth.uid())
-    WITH CHECK (user_id = auth.uid());
+    FOR ALL USING (user_id = (select auth.uid()))
+    WITH CHECK (user_id = (select auth.uid()));
 
 CREATE POLICY "Admins can manage all time entries" ON time_entries
     FOR ALL
-    USING (EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role = 'admin'))
-    WITH CHECK (EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role = 'admin'));
+    USING (EXISTS (SELECT 1 FROM users WHERE id = (select auth.uid()) AND role = 'admin'))
+    WITH CHECK (EXISTS (SELECT 1 FROM users WHERE id = (select auth.uid()) AND role = 'admin'));
 
 -- Verify the policies were created
 SELECT schemaname, tablename, policyname, permissive, roles, cmd, qual, with_check
