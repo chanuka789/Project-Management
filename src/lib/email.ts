@@ -47,7 +47,7 @@ export interface EmailTemplateData {
 
 // Generate email HTML content based on template
 export function generateEmailHtml(template: EmailTemplate, data: EmailTemplateData): string {
-  const companyName = data.companyName || 'QS Consultancy';
+  const companyName = data.companyName || process.env.NEXT_PUBLIC_COMPANY_NAME || 'QS Global Solutions';
   const baseStyles = `
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
     max-width: 600px;
@@ -214,7 +214,7 @@ export function generateEmailHtml(template: EmailTemplate, data: EmailTemplateDa
 
 // Generate plain text version
 export function generateEmailText(template: EmailTemplate, data: EmailTemplateData): string {
-  const companyName = data.companyName || 'QS Consultancy';
+  const companyName = data.companyName || process.env.NEXT_PUBLIC_COMPANY_NAME || 'QS Global Solutions';
 
   switch (template) {
     case 'timesheet_submitted':
@@ -254,6 +254,11 @@ export async function sendEmail(notification: EmailNotification): Promise<{ succ
   }
 }
 
+// Get base URL for email links
+function getBaseUrl(): string {
+  return process.env.NEXT_PUBLIC_APP_URL || 'https://qs-global-solutions.com';
+}
+
 // Helper functions for common notifications
 export async function notifyTimesheetSubmitted(
   adminEmails: string[],
@@ -262,6 +267,7 @@ export async function notifyTimesheetSubmitted(
   hours: number,
   companyName?: string
 ): Promise<void> {
+  const baseUrl = getBaseUrl();
   await sendEmail({
     to: adminEmails,
     subject: `Timesheet: ${userName} logged ${hours} hours`,
@@ -270,8 +276,8 @@ export async function notifyTimesheetSubmitted(
       userName,
       projectName,
       hours,
-      companyName,
-      link: '/admin/timesheet',
+      companyName: companyName || 'QS Global Solutions',
+      link: `${baseUrl}/admin/timesheet`,
     },
   });
 }
@@ -283,6 +289,7 @@ export async function notifyTaskAssigned(
   projectName: string,
   companyName?: string
 ): Promise<void> {
+  const baseUrl = getBaseUrl();
   await sendEmail({
     to: userEmail,
     subject: `New Task Assigned: ${taskTitle}`,
@@ -291,8 +298,8 @@ export async function notifyTaskAssigned(
       recipientName: userName,
       taskTitle,
       projectName,
-      companyName,
-      link: '/user/tasks',
+      companyName: companyName || 'QS Global Solutions',
+      link: `${baseUrl}/user/tasks`,
     },
   });
 }
@@ -305,16 +312,63 @@ export async function notifyBudgetAlert(
   projectId: string,
   companyName?: string
 ): Promise<void> {
+  const baseUrl = getBaseUrl();
   await sendEmail({
     to: adminEmails,
-    subject: `⚠️ Budget Alert: ${projectName} at ${budgetPercentage.toFixed(0)}%`,
+    subject: `Budget Alert: ${projectName} at ${budgetPercentage.toFixed(0)}%`,
     template: 'budget_alert',
     data: {
       projectName,
       budgetPercentage,
       alertLevel,
-      companyName,
-      link: `/admin/projects/${projectId}`,
+      companyName: companyName || 'QS Global Solutions',
+      link: `${baseUrl}/admin/projects/${projectId}`,
+    },
+  });
+}
+
+// Notify payment received
+export async function notifyPaymentReceived(
+  adminEmails: string[],
+  projectName: string,
+  amount: number,
+  currency: string,
+  companyName?: string
+): Promise<void> {
+  const baseUrl = getBaseUrl();
+  await sendEmail({
+    to: adminEmails,
+    subject: `Payment Received: ${currency} ${amount.toLocaleString()} for ${projectName}`,
+    template: 'payment_received',
+    data: {
+      projectName,
+      amount,
+      currency,
+      companyName: companyName || 'QS Global Solutions',
+      link: `${baseUrl}/admin/finance`,
+    },
+  });
+}
+
+// Notify payment issued to team member
+export async function notifyPaymentIssued(
+  userEmail: string,
+  userName: string,
+  amount: number,
+  currency: string,
+  companyName?: string
+): Promise<void> {
+  const baseUrl = getBaseUrl();
+  await sendEmail({
+    to: userEmail,
+    subject: `Payment Issued: ${currency} ${amount.toLocaleString()}`,
+    template: 'payment_issued',
+    data: {
+      recipientName: userName,
+      amount,
+      currency,
+      companyName: companyName || 'QS Global Solutions',
+      link: `${baseUrl}/user/payments`,
     },
   });
 }
