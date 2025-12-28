@@ -121,12 +121,14 @@ export default function UsersPage() {
     });
   };
 
-  // Generate a random password
+  // Generate a cryptographically secure random password
   const generatePassword = () => {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$%';
+    const randomValues = new Uint32Array(12);
+    crypto.getRandomValues(randomValues);
     let password = '';
     for (let i = 0; i < 12; i++) {
-      password += chars.charAt(Math.floor(Math.random() * chars.length));
+      password += chars.charAt(randomValues[i] % chars.length);
     }
     return password;
   };
@@ -154,8 +156,8 @@ export default function UsersPage() {
 
         setUsers(usersWithPaymentInfo);
         setFilteredUsers(usersWithPaymentInfo);
-      } catch (error) {
-        console.error('Error fetching users:', error);
+      } catch {
+        // Data fetch failed - user will see empty state
       } finally {
         setIsLoading(false);
       }
@@ -228,8 +230,7 @@ export default function UsersPage() {
       setUsers(usersWithPaymentInfo);
       setShowEditModal(false);
       setSelectedUser(null);
-    } catch (error) {
-      console.error('Error updating user:', error);
+    } catch {
       alert('Failed to update user');
     }
   };
@@ -255,8 +256,7 @@ export default function UsersPage() {
       if (error) throw error;
 
       setUsers(users.filter(u => u.id !== userToDelete.id));
-    } catch (error) {
-      console.error('Error deleting user:', error);
+    } catch {
       alert('Failed to delete user');
     }
     setUserToDelete(null);
@@ -331,7 +331,6 @@ export default function UsersPage() {
         setUsers(usersWithPaymentInfo);
       }
     } catch (error: unknown) {
-      console.error('Error creating user:', error);
       const errorMessage = error instanceof Error ? error.message : 'Failed to create user';
       alert(errorMessage);
     } finally {
@@ -344,8 +343,8 @@ export default function UsersPage() {
       await navigator.clipboard.writeText(text);
       setCopiedField(field);
       setTimeout(() => setCopiedField(null), 2000);
-    } catch (error) {
-      console.error('Failed to copy:', error);
+    } catch {
+      // Copy failed - silently ignore
     }
   };
 

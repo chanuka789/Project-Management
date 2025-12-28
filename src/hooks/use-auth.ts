@@ -26,8 +26,7 @@ export function useAuth() {
         } else {
           setUser(null);
         }
-      } catch (error) {
-        console.error('Error fetching user:', error);
+      } catch {
         setUser(null);
       } finally {
         setLoading(false);
@@ -38,15 +37,23 @@ export function useAuth() {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        if (session?.user) {
-          const { data: profile } = await supabase
-            .from('users')
-            .select('*')
-            .eq('id', session.user.id)
-            .single();
+        try {
+          if (session?.user) {
+            const { data: profile, error } = await supabase
+              .from('users')
+              .select('*')
+              .eq('id', session.user.id)
+              .single();
 
-          setUser(profile);
-        } else {
+            if (!error && profile) {
+              setUser(profile);
+            } else {
+              setUser(null);
+            }
+          } else {
+            setUser(null);
+          }
+        } catch {
           setUser(null);
         }
       }

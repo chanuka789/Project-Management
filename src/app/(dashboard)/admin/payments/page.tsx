@@ -178,9 +178,12 @@ export default function PaymentsPage() {
 
       if (paymentsError) {
         // Table doesn't exist or other error - use localStorage as fallback
-        console.log('Using localStorage for payments (Supabase table not available)');
         const savedPayments = localStorage.getItem('project_payments');
-        allPayments = savedPayments ? JSON.parse(savedPayments) : [];
+        try {
+          allPayments = savedPayments ? JSON.parse(savedPayments) : [];
+        } catch {
+          allPayments = [];
+        }
       } else {
         allPayments = paymentsData || [];
         // Sync to localStorage for offline access
@@ -219,10 +222,14 @@ export default function PaymentsPage() {
       // Load client contacts from localStorage
       const savedContacts = localStorage.getItem('client_contacts');
       if (savedContacts) {
-        setClientContacts(JSON.parse(savedContacts));
+        try {
+          setClientContacts(JSON.parse(savedContacts));
+        } catch {
+          // Ignore invalid JSON in localStorage
+        }
       }
-    } catch (error) {
-      console.error('Error fetching data:', error);
+    } catch {
+      // Data fetch failed - user will see empty state
     } finally {
       setIsLoading(false);
     }
@@ -271,12 +278,15 @@ export default function PaymentsPage() {
         if (error) throw error;
       }
       return true;
-    } catch (supabaseError) {
-      console.log('Supabase save failed, using localStorage:', supabaseError);
-
+    } catch {
       // Fallback to localStorage
       const savedPayments = localStorage.getItem('project_payments');
-      let allPayments: Payment[] = savedPayments ? JSON.parse(savedPayments) : [];
+      let allPayments: Payment[] = [];
+      try {
+        allPayments = savedPayments ? JSON.parse(savedPayments) : [];
+      } catch {
+        allPayments = [];
+      }
 
       if (payment.id) {
         // Update existing
@@ -310,11 +320,15 @@ export default function PaymentsPage() {
 
       if (error) throw error;
       return true;
-    } catch (supabaseError) {
-      console.log('Supabase delete failed, using localStorage:', supabaseError);
-
+    } catch {
+      // Fallback to localStorage
       const savedPayments = localStorage.getItem('project_payments');
-      let allPayments: Payment[] = savedPayments ? JSON.parse(savedPayments) : [];
+      let allPayments: Payment[] = [];
+      try {
+        allPayments = savedPayments ? JSON.parse(savedPayments) : [];
+      } catch {
+        allPayments = [];
+      }
       allPayments = allPayments.filter(p => p.id !== paymentId);
       localStorage.setItem('project_payments', JSON.stringify(allPayments));
       return true;
@@ -446,8 +460,7 @@ export default function PaymentsPage() {
       setShowAddModal(false);
       setPreselectedProjectId('');
       fetchData();
-    } catch (error) {
-      console.error('Error adding payment:', error);
+    } catch {
       alert('Failed to add payment');
     }
   };
@@ -479,8 +492,7 @@ export default function PaymentsPage() {
       setShowEditModal(false);
       setEditingPayment(null);
       fetchData();
-    } catch (error) {
-      console.error('Error updating payment:', error);
+    } catch {
       alert('Failed to update payment');
     }
   };
@@ -495,8 +507,8 @@ export default function PaymentsPage() {
     try {
       await deletePayment(paymentToDelete.id);
       fetchData();
-    } catch (error) {
-      console.error('Error deleting payment:', error);
+    } catch {
+      alert('Failed to delete payment');
     }
     setPaymentToDelete(null);
   };

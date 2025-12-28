@@ -130,9 +130,8 @@ export async function getExchangeRate(
       date: data.date,
       source: data.source,
     };
-  } catch (error) {
-    console.error('Error fetching exchange rate:', error);
-    // Return fallback rate
+  } catch {
+    // Return fallback rate when API fails
     return {
       rate: DEFAULT_EXCHANGE_RATES[fromCurrency],
       date: new Date().toISOString().split('T')[0],
