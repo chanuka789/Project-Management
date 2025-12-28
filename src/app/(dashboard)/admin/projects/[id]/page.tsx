@@ -41,6 +41,7 @@ import {
 } from 'lucide-react';
 import type { User, Project, Task, TimeEntry, AdditionalCost, SupportedCurrency, ProjectUserWithUser } from '@/types/database';
 import { convertToAED, DEFAULT_EXCHANGE_RATES } from '@/lib/currency';
+import { notifyTaskAssigned } from '@/lib/notifications';
 
 interface ProjectDetails extends Project {
   assigned_users: User[];
@@ -192,6 +193,18 @@ export default function ProjectDetailPage() {
       // Update state without reloading
       if (newTask && project) {
         setProject({ ...project, tasks: [newTask, ...project.tasks] });
+
+        // Send email notification if task is assigned to someone
+        if (taskForm.assigned_to) {
+          notifyTaskAssigned({
+            assignedUserId: taskForm.assigned_to,
+            taskTitle: taskForm.title,
+            taskDescription: taskForm.description || undefined,
+            taskPriority: taskForm.priority,
+            taskDueDate: taskForm.due_date || undefined,
+            projectName: project.name,
+          });
+        }
       }
       setShowTaskModal(false);
       setTaskForm({ title: '', description: '', assigned_to: '', priority: 'medium', due_date: '' });

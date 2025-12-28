@@ -1,5 +1,5 @@
 /**
- * Email Notification System
+ * Email Notification System - QS Global Solutions
  *
  * This module provides email notification functionality.
  * Configure your email provider by setting environment variables:
@@ -7,12 +7,9 @@
  * For production, use one of:
  * - RESEND_API_KEY (Resend)
  * - SENDGRID_API_KEY (SendGrid)
- * - SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS (SMTP)
  *
  * For development, emails are logged to console.
  */
-
-import type { User, Project, TimeEntry, BudgetAlert } from '@/types/database';
 
 // Email template types
 export type EmailTemplate =
@@ -22,7 +19,8 @@ export type EmailTemplate =
   | 'payment_issued'
   | 'budget_alert'
   | 'weekly_summary'
-  | 'project_update';
+  | 'project_update'
+  | 'welcome';
 
 export interface EmailNotification {
   to: string | string[];
@@ -39,336 +37,529 @@ export interface EmailTemplateData {
   amount?: number;
   currency?: string;
   taskTitle?: string;
+  taskDescription?: string;
+  taskPriority?: string;
+  taskDueDate?: string;
   budgetPercentage?: number;
   alertLevel?: string;
   link?: string;
   companyName?: string;
+  date?: string;
+  description?: string;
 }
 
-// Generate email HTML content based on template
+// QS Global Solutions Brand Colors
+const BRAND = {
+  primary: '#0a5082',
+  primaryDark: '#083d63',
+  secondary: '#1a365d',
+  accent: '#3b82f6',
+  success: '#10b981',
+  warning: '#f59e0b',
+  danger: '#ef4444',
+  text: '#1f2937',
+  textLight: '#6b7280',
+  background: '#f8fafc',
+  white: '#ffffff',
+  border: '#e5e7eb',
+};
+
+// Generate professional email HTML content
 export function generateEmailHtml(template: EmailTemplate, data: EmailTemplateData): string {
-  const companyName = data.companyName || process.env.NEXT_PUBLIC_COMPANY_NAME || 'QS Global Solutions';
-  const baseStyles = `
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-    max-width: 600px;
-    margin: 0 auto;
-    padding: 20px;
-    background-color: #ffffff;
-  `;
+  const companyName = data.companyName || 'QS Global Solutions';
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://qs-global-solutions.com';
 
-  const headerStyles = `
-    background: linear-gradient(135deg, #0a5082 0%, #1a365d 100%);
-    color: white;
-    padding: 24px;
-    text-align: center;
-    border-radius: 8px 8px 0 0;
-  `;
+  // Common email wrapper
+  const emailWrapper = (content: string, title: string) => `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${title}</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f3f4f6;">
+  <table role="presentation" style="width: 100%; border-collapse: collapse;">
+    <tr>
+      <td style="padding: 40px 20px;">
+        <table role="presentation" style="max-width: 600px; margin: 0 auto; background-color: ${BRAND.white}; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+          <!-- Header -->
+          <tr>
+            <td style="background: linear-gradient(135deg, ${BRAND.primary} 0%, ${BRAND.secondary} 100%); padding: 32px 40px; text-align: center;">
+              <h1 style="margin: 0; color: ${BRAND.white}; font-size: 28px; font-weight: 700; letter-spacing: -0.5px;">
+                ${companyName}
+              </h1>
+              <p style="margin: 8px 0 0 0; color: rgba(255,255,255,0.8); font-size: 14px;">
+                Project Management System
+              </p>
+            </td>
+          </tr>
+          <!-- Content -->
+          <tr>
+            <td style="padding: 40px;">
+              ${content}
+            </td>
+          </tr>
+          <!-- Footer -->
+          <tr>
+            <td style="background-color: ${BRAND.background}; padding: 24px 40px; border-top: 1px solid ${BRAND.border};">
+              <table role="presentation" style="width: 100%;">
+                <tr>
+                  <td style="text-align: center;">
+                    <p style="margin: 0 0 8px 0; color: ${BRAND.textLight}; font-size: 13px;">
+                      This is an automated notification from ${companyName}
+                    </p>
+                    <p style="margin: 0; color: ${BRAND.textLight}; font-size: 12px;">
+                      © ${new Date().getFullYear()} ${companyName}. All rights reserved.
+                    </p>
+                    <p style="margin: 8px 0 0 0;">
+                      <a href="${baseUrl}" style="color: ${BRAND.primary}; text-decoration: none; font-size: 12px;">
+                        Visit Dashboard
+                      </a>
+                    </p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
 
-  const contentStyles = `
-    padding: 24px;
-    background-color: #f8fafc;
-    border: 1px solid #e2e8f0;
-    border-top: none;
-    border-radius: 0 0 8px 8px;
-  `;
-
-  const buttonStyles = `
+  // Button style
+  const buttonStyle = `
     display: inline-block;
-    padding: 12px 24px;
-    background-color: #0a5082;
-    color: white;
+    padding: 14px 32px;
+    background: linear-gradient(135deg, ${BRAND.primary} 0%, ${BRAND.primaryDark} 100%);
+    color: ${BRAND.white};
     text-decoration: none;
-    border-radius: 6px;
+    border-radius: 8px;
     font-weight: 600;
-    margin-top: 16px;
+    font-size: 14px;
+    text-align: center;
+    box-shadow: 0 2px 4px rgba(10, 80, 130, 0.3);
+  `;
+
+  // Info box style
+  const infoBoxStyle = `
+    background-color: ${BRAND.background};
+    border-left: 4px solid ${BRAND.primary};
+    padding: 16px 20px;
+    border-radius: 0 8px 8px 0;
+    margin: 24px 0;
   `;
 
   switch (template) {
     case 'timesheet_submitted':
-      return `
-        <div style="${baseStyles}">
-          <div style="${headerStyles}">
-            <h1 style="margin: 0; font-size: 24px;">${companyName}</h1>
-          </div>
-          <div style="${contentStyles}">
-            <h2 style="margin-top: 0; color: #1a365d;">New Timesheet Entry</h2>
-            <p style="color: #64748b; line-height: 1.6;">
-              <strong>${data.userName}</strong> has logged <strong>${data.hours} hours</strong>
-              on <strong>${data.projectName}</strong>.
-            </p>
-            ${data.link ? `<a href="${data.link}" style="${buttonStyles}">View Timesheet</a>` : ''}
-          </div>
+      return emailWrapper(`
+        <h2 style="margin: 0 0 16px 0; color: ${BRAND.text}; font-size: 22px; font-weight: 600;">
+          ⏱️ New Timesheet Entry
+        </h2>
+        <p style="margin: 0 0 24px 0; color: ${BRAND.textLight}; font-size: 15px; line-height: 1.6;">
+          A team member has logged new hours in the system.
+        </p>
+
+        <div style="${infoBoxStyle}">
+          <table role="presentation" style="width: 100%;">
+            <tr>
+              <td style="padding: 8px 0;">
+                <span style="color: ${BRAND.textLight}; font-size: 13px;">Team Member</span><br>
+                <span style="color: ${BRAND.text}; font-size: 16px; font-weight: 600;">${data.userName}</span>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0;">
+                <span style="color: ${BRAND.textLight}; font-size: 13px;">Project</span><br>
+                <span style="color: ${BRAND.text}; font-size: 16px; font-weight: 600;">${data.projectName}</span>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0;">
+                <span style="color: ${BRAND.textLight}; font-size: 13px;">Hours Logged</span><br>
+                <span style="color: ${BRAND.primary}; font-size: 24px; font-weight: 700;">${data.hours} hours</span>
+              </td>
+            </tr>
+            ${data.date ? `
+            <tr>
+              <td style="padding: 8px 0;">
+                <span style="color: ${BRAND.textLight}; font-size: 13px;">Date</span><br>
+                <span style="color: ${BRAND.text}; font-size: 16px; font-weight: 600;">${data.date}</span>
+              </td>
+            </tr>
+            ` : ''}
+            ${data.description ? `
+            <tr>
+              <td style="padding: 8px 0;">
+                <span style="color: ${BRAND.textLight}; font-size: 13px;">Description</span><br>
+                <span style="color: ${BRAND.text}; font-size: 14px;">${data.description}</span>
+              </td>
+            </tr>
+            ` : ''}
+          </table>
         </div>
-      `;
+
+        ${data.link ? `
+        <p style="text-align: center; margin-top: 32px;">
+          <a href="${data.link}" style="${buttonStyle}">
+            View Timesheet Details
+          </a>
+        </p>
+        ` : ''}
+      `, 'New Timesheet Entry');
 
     case 'task_assigned':
-      return `
-        <div style="${baseStyles}">
-          <div style="${headerStyles}">
-            <h1 style="margin: 0; font-size: 24px;">${companyName}</h1>
-          </div>
-          <div style="${contentStyles}">
-            <h2 style="margin-top: 0; color: #1a365d;">Task Assigned</h2>
-            <p style="color: #64748b; line-height: 1.6;">
-              Hi ${data.recipientName},<br><br>
-              You have been assigned a new task: <strong>${data.taskTitle}</strong>
-              ${data.projectName ? ` on project <strong>${data.projectName}</strong>` : ''}.
-            </p>
-            ${data.link ? `<a href="${data.link}" style="${buttonStyles}">View Task</a>` : ''}
-          </div>
-        </div>
-      `;
+      const priorityColor = data.taskPriority === 'high' ? BRAND.danger :
+                           data.taskPriority === 'medium' ? BRAND.warning : BRAND.success;
+      return emailWrapper(`
+        <h2 style="margin: 0 0 16px 0; color: ${BRAND.text}; font-size: 22px; font-weight: 600;">
+          📋 New Task Assigned
+        </h2>
+        <p style="margin: 0 0 8px 0; color: ${BRAND.textLight}; font-size: 15px; line-height: 1.6;">
+          Hi <strong style="color: ${BRAND.text};">${data.recipientName}</strong>,
+        </p>
+        <p style="margin: 0 0 24px 0; color: ${BRAND.textLight}; font-size: 15px; line-height: 1.6;">
+          You have been assigned a new task. Please review the details below.
+        </p>
 
-    case 'payment_received':
-      return `
-        <div style="${baseStyles}">
-          <div style="${headerStyles}">
-            <h1 style="margin: 0; font-size: 24px;">${companyName}</h1>
-          </div>
-          <div style="${contentStyles}">
-            <h2 style="margin-top: 0; color: #1a365d;">Payment Received</h2>
-            <p style="color: #64748b; line-height: 1.6;">
-              A payment of <strong>${data.currency} ${data.amount?.toLocaleString()}</strong>
-              has been received for <strong>${data.projectName}</strong>.
-            </p>
-            ${data.link ? `<a href="${data.link}" style="${buttonStyles}">View Payment</a>` : ''}
-          </div>
+        <div style="${infoBoxStyle}">
+          <table role="presentation" style="width: 100%;">
+            <tr>
+              <td style="padding: 8px 0;">
+                <span style="color: ${BRAND.textLight}; font-size: 13px;">Task Title</span><br>
+                <span style="color: ${BRAND.text}; font-size: 18px; font-weight: 600;">${data.taskTitle}</span>
+              </td>
+            </tr>
+            ${data.projectName ? `
+            <tr>
+              <td style="padding: 8px 0;">
+                <span style="color: ${BRAND.textLight}; font-size: 13px;">Project</span><br>
+                <span style="color: ${BRAND.text}; font-size: 16px; font-weight: 600;">${data.projectName}</span>
+              </td>
+            </tr>
+            ` : ''}
+            ${data.taskDescription ? `
+            <tr>
+              <td style="padding: 8px 0;">
+                <span style="color: ${BRAND.textLight}; font-size: 13px;">Description</span><br>
+                <span style="color: ${BRAND.text}; font-size: 14px; line-height: 1.5;">${data.taskDescription}</span>
+              </td>
+            </tr>
+            ` : ''}
+            <tr>
+              <td style="padding: 8px 0;">
+                <span style="color: ${BRAND.textLight}; font-size: 13px;">Priority</span><br>
+                <span style="display: inline-block; padding: 4px 12px; background-color: ${priorityColor}; color: white; border-radius: 12px; font-size: 12px; font-weight: 600; text-transform: uppercase;">
+                  ${data.taskPriority || 'Medium'}
+                </span>
+              </td>
+            </tr>
+            ${data.taskDueDate ? `
+            <tr>
+              <td style="padding: 8px 0;">
+                <span style="color: ${BRAND.textLight}; font-size: 13px;">Due Date</span><br>
+                <span style="color: ${BRAND.text}; font-size: 16px; font-weight: 600;">${data.taskDueDate}</span>
+              </td>
+            </tr>
+            ` : ''}
+          </table>
         </div>
-      `;
 
-    case 'payment_issued':
-      return `
-        <div style="${baseStyles}">
-          <div style="${headerStyles}">
-            <h1 style="margin: 0; font-size: 24px;">${companyName}</h1>
-          </div>
-          <div style="${contentStyles}">
-            <h2 style="margin-top: 0; color: #1a365d;">Payment Issued</h2>
-            <p style="color: #64748b; line-height: 1.6;">
-              Hi ${data.recipientName},<br><br>
-              A payment of <strong>${data.currency} ${data.amount?.toLocaleString()}</strong>
-              has been issued to you.
-            </p>
-            ${data.link ? `<a href="${data.link}" style="${buttonStyles}">View Payment</a>` : ''}
-          </div>
-        </div>
-      `;
+        ${data.link ? `
+        <p style="text-align: center; margin-top: 32px;">
+          <a href="${data.link}" style="${buttonStyle}">
+            View Task Details
+          </a>
+        </p>
+        ` : ''}
+      `, 'New Task Assigned');
 
     case 'budget_alert':
-      const alertColor = data.alertLevel === 'exceeded' ? '#dc2626'
+      const alertColor = data.alertLevel === 'exceeded' ? BRAND.danger
         : data.alertLevel === 'critical' ? '#ea580c'
-        : '#ca8a04';
-      return `
-        <div style="${baseStyles}">
-          <div style="${headerStyles}">
-            <h1 style="margin: 0; font-size: 24px;">${companyName}</h1>
-          </div>
-          <div style="${contentStyles}">
-            <h2 style="margin-top: 0; color: ${alertColor};">
-              ⚠️ Budget Alert - ${data.projectName}
-            </h2>
-            <p style="color: #64748b; line-height: 1.6;">
-              Project <strong>${data.projectName}</strong> has reached
-              <strong style="color: ${alertColor};">${data.budgetPercentage}%</strong> of its budget.
-              ${data.alertLevel === 'exceeded' ? 'The project has exceeded its allocated budget.' : ''}
-            </p>
-            ${data.link ? `<a href="${data.link}" style="${buttonStyles}">View Project</a>` : ''}
-          </div>
-        </div>
-      `;
+        : BRAND.warning;
+      const alertIcon = data.alertLevel === 'exceeded' ? '🚨'
+        : data.alertLevel === 'critical' ? '⚠️' : '📊';
+      const alertTitle = data.alertLevel === 'exceeded' ? 'Budget Exceeded!'
+        : data.alertLevel === 'critical' ? 'Critical Budget Alert'
+        : 'Budget Warning';
 
-    case 'weekly_summary':
-      return `
-        <div style="${baseStyles}">
-          <div style="${headerStyles}">
-            <h1 style="margin: 0; font-size: 24px;">${companyName}</h1>
-          </div>
-          <div style="${contentStyles}">
-            <h2 style="margin-top: 0; color: #1a365d;">Weekly Summary</h2>
-            <p style="color: #64748b; line-height: 1.6;">
-              Hi ${data.recipientName},<br><br>
-              Here's your weekly project summary.
-            </p>
-            ${data.link ? `<a href="${data.link}" style="${buttonStyles}">View Dashboard</a>` : ''}
+      return emailWrapper(`
+        <div style="text-align: center; margin-bottom: 24px;">
+          <span style="font-size: 48px;">${alertIcon}</span>
+        </div>
+        <h2 style="margin: 0 0 16px 0; color: ${alertColor}; font-size: 22px; font-weight: 600; text-align: center;">
+          ${alertTitle}
+        </h2>
+        <p style="margin: 0 0 24px 0; color: ${BRAND.textLight}; font-size: 15px; line-height: 1.6; text-align: center;">
+          Project budget requires your attention.
+        </p>
+
+        <div style="background-color: ${BRAND.background}; border: 2px solid ${alertColor}; padding: 24px; border-radius: 12px; margin: 24px 0; text-align: center;">
+          <p style="margin: 0 0 8px 0; color: ${BRAND.textLight}; font-size: 14px;">Project</p>
+          <p style="margin: 0 0 16px 0; color: ${BRAND.text}; font-size: 20px; font-weight: 600;">${data.projectName}</p>
+
+          <p style="margin: 0 0 8px 0; color: ${BRAND.textLight}; font-size: 14px;">Budget Used</p>
+          <p style="margin: 0; color: ${alertColor}; font-size: 48px; font-weight: 700;">${data.budgetPercentage?.toFixed(0)}%</p>
+
+          <!-- Progress bar -->
+          <div style="background-color: #e5e7eb; border-radius: 999px; height: 12px; margin-top: 16px; overflow: hidden;">
+            <div style="background-color: ${alertColor}; height: 100%; width: ${Math.min(data.budgetPercentage || 0, 100)}%; border-radius: 999px;"></div>
           </div>
         </div>
-      `;
+
+        <p style="margin: 24px 0; color: ${BRAND.textLight}; font-size: 14px; line-height: 1.6;">
+          ${data.alertLevel === 'exceeded'
+            ? 'This project has exceeded its allocated budget. Immediate action is recommended.'
+            : data.alertLevel === 'critical'
+            ? 'This project is approaching its budget limit. Please review and take necessary action.'
+            : 'This project is using a significant portion of its budget. Consider reviewing upcoming expenses.'}
+        </p>
+
+        ${data.link ? `
+        <p style="text-align: center; margin-top: 32px;">
+          <a href="${data.link}" style="${buttonStyle}">
+            Review Project Budget
+          </a>
+        </p>
+        ` : ''}
+      `, alertTitle);
+
+    case 'payment_received':
+      return emailWrapper(`
+        <div style="text-align: center; margin-bottom: 24px;">
+          <span style="font-size: 48px;">💰</span>
+        </div>
+        <h2 style="margin: 0 0 16px 0; color: ${BRAND.success}; font-size: 22px; font-weight: 600; text-align: center;">
+          Payment Received
+        </h2>
+        <p style="margin: 0 0 24px 0; color: ${BRAND.textLight}; font-size: 15px; line-height: 1.6; text-align: center;">
+          A new payment has been recorded in the system.
+        </p>
+
+        <div style="background-color: ${BRAND.background}; border: 2px solid ${BRAND.success}; padding: 24px; border-radius: 12px; margin: 24px 0; text-align: center;">
+          <p style="margin: 0 0 8px 0; color: ${BRAND.textLight}; font-size: 14px;">Amount Received</p>
+          <p style="margin: 0 0 16px 0; color: ${BRAND.success}; font-size: 36px; font-weight: 700;">
+            ${data.currency} ${data.amount?.toLocaleString()}
+          </p>
+          <p style="margin: 0 0 8px 0; color: ${BRAND.textLight}; font-size: 14px;">For Project</p>
+          <p style="margin: 0; color: ${BRAND.text}; font-size: 18px; font-weight: 600;">${data.projectName}</p>
+        </div>
+
+        ${data.link ? `
+        <p style="text-align: center; margin-top: 32px;">
+          <a href="${data.link}" style="${buttonStyle}">
+            View Payment Details
+          </a>
+        </p>
+        ` : ''}
+      `, 'Payment Received');
+
+    case 'payment_issued':
+      return emailWrapper(`
+        <div style="text-align: center; margin-bottom: 24px;">
+          <span style="font-size: 48px;">🎉</span>
+        </div>
+        <h2 style="margin: 0 0 16px 0; color: ${BRAND.primary}; font-size: 22px; font-weight: 600; text-align: center;">
+          Payment Issued
+        </h2>
+        <p style="margin: 0 0 8px 0; color: ${BRAND.textLight}; font-size: 15px; line-height: 1.6; text-align: center;">
+          Hi <strong style="color: ${BRAND.text};">${data.recipientName}</strong>,
+        </p>
+        <p style="margin: 0 0 24px 0; color: ${BRAND.textLight}; font-size: 15px; line-height: 1.6; text-align: center;">
+          Great news! A payment has been issued to you.
+        </p>
+
+        <div style="background-color: ${BRAND.background}; border: 2px solid ${BRAND.primary}; padding: 24px; border-radius: 12px; margin: 24px 0; text-align: center;">
+          <p style="margin: 0 0 8px 0; color: ${BRAND.textLight}; font-size: 14px;">Payment Amount</p>
+          <p style="margin: 0; color: ${BRAND.primary}; font-size: 36px; font-weight: 700;">
+            ${data.currency} ${data.amount?.toLocaleString()}
+          </p>
+        </div>
+
+        <p style="margin: 24px 0; color: ${BRAND.textLight}; font-size: 14px; line-height: 1.6; text-align: center;">
+          This payment will be processed according to your payment terms.
+          If you have any questions, please contact the admin team.
+        </p>
+
+        ${data.link ? `
+        <p style="text-align: center; margin-top: 32px;">
+          <a href="${data.link}" style="${buttonStyle}">
+            View Payment History
+          </a>
+        </p>
+        ` : ''}
+      `, 'Payment Issued');
+
+    case 'welcome':
+      return emailWrapper(`
+        <div style="text-align: center; margin-bottom: 24px;">
+          <span style="font-size: 48px;">👋</span>
+        </div>
+        <h2 style="margin: 0 0 16px 0; color: ${BRAND.text}; font-size: 22px; font-weight: 600; text-align: center;">
+          Welcome to ${companyName}!
+        </h2>
+        <p style="margin: 0 0 8px 0; color: ${BRAND.textLight}; font-size: 15px; line-height: 1.6; text-align: center;">
+          Hi <strong style="color: ${BRAND.text};">${data.recipientName}</strong>,
+        </p>
+        <p style="margin: 0 0 24px 0; color: ${BRAND.textLight}; font-size: 15px; line-height: 1.6; text-align: center;">
+          Your account has been created. You can now access the project management system.
+        </p>
+
+        <div style="${infoBoxStyle}">
+          <p style="margin: 0; color: ${BRAND.text}; font-size: 14px; line-height: 1.6;">
+            <strong>What you can do:</strong><br>
+            • View your assigned projects<br>
+            • Log your working hours<br>
+            • Track your tasks<br>
+            • View payment history
+          </p>
+        </div>
+
+        ${data.link ? `
+        <p style="text-align: center; margin-top: 32px;">
+          <a href="${data.link}" style="${buttonStyle}">
+            Access Dashboard
+          </a>
+        </p>
+        ` : ''}
+      `, `Welcome to ${companyName}`);
 
     default:
-      return `
-        <div style="${baseStyles}">
-          <div style="${headerStyles}">
-            <h1 style="margin: 0; font-size: 24px;">${companyName}</h1>
-          </div>
-          <div style="${contentStyles}">
-            <h2 style="margin-top: 0; color: #1a365d;">Notification</h2>
-            <p style="color: #64748b; line-height: 1.6;">
-              You have a new notification from ${companyName}.
-            </p>
-            ${data.link ? `<a href="${data.link}" style="${buttonStyles}">View Details</a>` : ''}
-          </div>
-        </div>
-      `;
+      return emailWrapper(`
+        <h2 style="margin: 0 0 16px 0; color: ${BRAND.text}; font-size: 22px; font-weight: 600;">
+          Notification
+        </h2>
+        <p style="margin: 0 0 24px 0; color: ${BRAND.textLight}; font-size: 15px; line-height: 1.6;">
+          You have a new notification from ${companyName}.
+        </p>
+        ${data.link ? `
+        <p style="text-align: center; margin-top: 32px;">
+          <a href="${data.link}" style="${buttonStyle}">
+            View Details
+          </a>
+        </p>
+        ` : ''}
+      `, 'Notification');
   }
 }
 
 // Generate plain text version
 export function generateEmailText(template: EmailTemplate, data: EmailTemplateData): string {
-  const companyName = data.companyName || process.env.NEXT_PUBLIC_COMPANY_NAME || 'QS Global Solutions';
+  const companyName = data.companyName || 'QS Global Solutions';
+  const separator = '━'.repeat(40);
 
   switch (template) {
     case 'timesheet_submitted':
-      return `${companyName}\n\nNew Timesheet Entry\n\n${data.userName} has logged ${data.hours} hours on ${data.projectName}.\n\n${data.link ? `View: ${data.link}` : ''}`;
+      return `${companyName}
+${separator}
+
+NEW TIMESHEET ENTRY
+
+Team Member: ${data.userName}
+Project: ${data.projectName}
+Hours Logged: ${data.hours} hours
+${data.date ? `Date: ${data.date}` : ''}
+${data.description ? `Description: ${data.description}` : ''}
+
+${data.link ? `View Details: ${data.link}` : ''}
+
+${separator}
+This is an automated notification from ${companyName}`;
+
     case 'task_assigned':
-      return `${companyName}\n\nTask Assigned\n\nHi ${data.recipientName},\n\nYou have been assigned a new task: ${data.taskTitle}${data.projectName ? ` on project ${data.projectName}` : ''}.\n\n${data.link ? `View: ${data.link}` : ''}`;
-    case 'payment_received':
-      return `${companyName}\n\nPayment Received\n\nA payment of ${data.currency} ${data.amount?.toLocaleString()} has been received for ${data.projectName}.\n\n${data.link ? `View: ${data.link}` : ''}`;
-    case 'payment_issued':
-      return `${companyName}\n\nPayment Issued\n\nHi ${data.recipientName},\n\nA payment of ${data.currency} ${data.amount?.toLocaleString()} has been issued to you.\n\n${data.link ? `View: ${data.link}` : ''}`;
+      return `${companyName}
+${separator}
+
+NEW TASK ASSIGNED
+
+Hi ${data.recipientName},
+
+You have been assigned a new task.
+
+Task: ${data.taskTitle}
+${data.projectName ? `Project: ${data.projectName}` : ''}
+${data.taskDescription ? `Description: ${data.taskDescription}` : ''}
+Priority: ${data.taskPriority || 'Medium'}
+${data.taskDueDate ? `Due Date: ${data.taskDueDate}` : ''}
+
+${data.link ? `View Task: ${data.link}` : ''}
+
+${separator}
+This is an automated notification from ${companyName}`;
+
     case 'budget_alert':
-      return `${companyName}\n\nBudget Alert\n\nProject ${data.projectName} has reached ${data.budgetPercentage}% of its budget.\n\n${data.link ? `View: ${data.link}` : ''}`;
+      const alertTitle = data.alertLevel === 'exceeded' ? 'BUDGET EXCEEDED'
+        : data.alertLevel === 'critical' ? 'CRITICAL BUDGET ALERT'
+        : 'BUDGET WARNING';
+      return `${companyName}
+${separator}
+
+${alertTitle}
+
+Project: ${data.projectName}
+Budget Used: ${data.budgetPercentage?.toFixed(0)}%
+
+${data.alertLevel === 'exceeded'
+  ? 'This project has exceeded its allocated budget. Immediate action is recommended.'
+  : data.alertLevel === 'critical'
+  ? 'This project is approaching its budget limit. Please review and take necessary action.'
+  : 'This project is using a significant portion of its budget.'}
+
+${data.link ? `Review Project: ${data.link}` : ''}
+
+${separator}
+This is an automated notification from ${companyName}`;
+
+    case 'payment_received':
+      return `${companyName}
+${separator}
+
+PAYMENT RECEIVED
+
+Amount: ${data.currency} ${data.amount?.toLocaleString()}
+Project: ${data.projectName}
+
+${data.link ? `View Details: ${data.link}` : ''}
+
+${separator}
+This is an automated notification from ${companyName}`;
+
+    case 'payment_issued':
+      return `${companyName}
+${separator}
+
+PAYMENT ISSUED
+
+Hi ${data.recipientName},
+
+A payment has been issued to you.
+
+Amount: ${data.currency} ${data.amount?.toLocaleString()}
+
+${data.link ? `View Payment History: ${data.link}` : ''}
+
+${separator}
+This is an automated notification from ${companyName}`;
+
     default:
-      return `${companyName}\n\nNotification\n\nYou have a new notification.\n\n${data.link ? `View: ${data.link}` : ''}`;
-  }
-}
+      return `${companyName}
+${separator}
 
-// Email sending function (calls API route)
-export async function sendEmail(notification: EmailNotification): Promise<{ success: boolean; error?: string }> {
-  try {
-    const response = await fetch('/api/send-email', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(notification),
-    });
+NOTIFICATION
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      return { success: false, error: errorData.error || 'Failed to send email' };
-    }
+You have a new notification.
 
-    return { success: true };
-  } catch {
-    return { success: false, error: 'Network error' };
+${data.link ? `View Details: ${data.link}` : ''}
+
+${separator}
+This is an automated notification from ${companyName}`;
   }
 }
 
 // Get base URL for email links
-function getBaseUrl(): string {
+export function getBaseUrl(): string {
   return process.env.NEXT_PUBLIC_APP_URL || 'https://qs-global-solutions.com';
-}
-
-// Helper functions for common notifications
-export async function notifyTimesheetSubmitted(
-  adminEmails: string[],
-  userName: string,
-  projectName: string,
-  hours: number,
-  companyName?: string
-): Promise<void> {
-  const baseUrl = getBaseUrl();
-  await sendEmail({
-    to: adminEmails,
-    subject: `Timesheet: ${userName} logged ${hours} hours`,
-    template: 'timesheet_submitted',
-    data: {
-      userName,
-      projectName,
-      hours,
-      companyName: companyName || 'QS Global Solutions',
-      link: `${baseUrl}/admin/timesheet`,
-    },
-  });
-}
-
-export async function notifyTaskAssigned(
-  userEmail: string,
-  userName: string,
-  taskTitle: string,
-  projectName: string,
-  companyName?: string
-): Promise<void> {
-  const baseUrl = getBaseUrl();
-  await sendEmail({
-    to: userEmail,
-    subject: `New Task Assigned: ${taskTitle}`,
-    template: 'task_assigned',
-    data: {
-      recipientName: userName,
-      taskTitle,
-      projectName,
-      companyName: companyName || 'QS Global Solutions',
-      link: `${baseUrl}/user/tasks`,
-    },
-  });
-}
-
-export async function notifyBudgetAlert(
-  adminEmails: string[],
-  projectName: string,
-  budgetPercentage: number,
-  alertLevel: 'warning' | 'critical' | 'exceeded',
-  projectId: string,
-  companyName?: string
-): Promise<void> {
-  const baseUrl = getBaseUrl();
-  await sendEmail({
-    to: adminEmails,
-    subject: `Budget Alert: ${projectName} at ${budgetPercentage.toFixed(0)}%`,
-    template: 'budget_alert',
-    data: {
-      projectName,
-      budgetPercentage,
-      alertLevel,
-      companyName: companyName || 'QS Global Solutions',
-      link: `${baseUrl}/admin/projects/${projectId}`,
-    },
-  });
-}
-
-// Notify payment received
-export async function notifyPaymentReceived(
-  adminEmails: string[],
-  projectName: string,
-  amount: number,
-  currency: string,
-  companyName?: string
-): Promise<void> {
-  const baseUrl = getBaseUrl();
-  await sendEmail({
-    to: adminEmails,
-    subject: `Payment Received: ${currency} ${amount.toLocaleString()} for ${projectName}`,
-    template: 'payment_received',
-    data: {
-      projectName,
-      amount,
-      currency,
-      companyName: companyName || 'QS Global Solutions',
-      link: `${baseUrl}/admin/finance`,
-    },
-  });
-}
-
-// Notify payment issued to team member
-export async function notifyPaymentIssued(
-  userEmail: string,
-  userName: string,
-  amount: number,
-  currency: string,
-  companyName?: string
-): Promise<void> {
-  const baseUrl = getBaseUrl();
-  await sendEmail({
-    to: userEmail,
-    subject: `Payment Issued: ${currency} ${amount.toLocaleString()}`,
-    template: 'payment_issued',
-    data: {
-      recipientName: userName,
-      amount,
-      currency,
-      companyName: companyName || 'QS Global Solutions',
-      link: `${baseUrl}/user/payments`,
-    },
-  });
 }

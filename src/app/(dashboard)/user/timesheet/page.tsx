@@ -24,6 +24,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import type { User, Project, TimeEntry, ProjectUserWithProject } from '@/types/database';
+import { notifyTimesheetSubmitted } from '@/lib/notifications';
 
 export default function TimesheetPage() {
   const [user, setUser] = useState<User | null>(null);
@@ -112,6 +113,16 @@ export default function TimesheetPage() {
       // Update state without reloading
       if (newEntry) {
         setTimeEntries([newEntry, ...timeEntries]);
+
+        // Send email notification to admins
+        const project = projects.find(p => p.id === formData.project_id);
+        notifyTimesheetSubmitted({
+          userName: user?.full_name || 'Team Member',
+          projectName: project?.name || 'Unknown Project',
+          hours: parseFloat(formData.hours),
+          date: formData.date,
+          description: formData.description || undefined,
+        });
       }
       setShowModal(false);
       setFormData({ project_id: '', hours: '', description: '', date: new Date().toISOString().split('T')[0] });
