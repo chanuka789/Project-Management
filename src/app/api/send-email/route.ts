@@ -31,7 +31,7 @@ export async function POST(request: Request) {
     // Try Resend first
     const resendApiKey = process.env.RESEND_API_KEY;
     if (resendApiKey) {
-      const fromEmail = process.env.EMAIL_FROM || 'notifications@yourdomain.com';
+      const fromEmail = process.env.EMAIL_FROM || 'notifications@qs-global-solutions.com';
 
       const response = await fetch('https://api.resend.com/emails', {
         method: 'POST',
@@ -62,7 +62,7 @@ export async function POST(request: Request) {
     // Try SendGrid
     const sendgridApiKey = process.env.SENDGRID_API_KEY;
     if (sendgridApiKey) {
-      const fromEmail = process.env.EMAIL_FROM || 'notifications@yourdomain.com';
+      const fromEmail = process.env.EMAIL_FROM || 'notifications@qs-global-solutions.com';
 
       const response = await fetch('https://api.sendgrid.com/v3/mail/send', {
         method: 'POST',
