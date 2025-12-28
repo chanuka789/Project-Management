@@ -1,19 +1,11 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 import { generateEmailHtml, generateEmailText, getBaseUrl } from '@/lib/email';
 import type { EmailTemplate, EmailTemplateData } from '@/lib/email';
-
-// Create a Supabase client with service role for server-side operations
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
 
 interface NotificationRequest {
   type: 'timesheet' | 'task_assigned' | 'budget_alert' | 'payment_received' | 'payment_issued';
   data: {
     // Common fields
-    userId?: string;
     projectId?: string;
     projectName?: string;
 
@@ -28,7 +20,8 @@ interface NotificationRequest {
     taskDescription?: string;
     taskPriority?: string;
     taskDueDate?: string;
-    assignedUserId?: string;
+    assignedUserEmail?: string;
+    assignedUserName?: string;
 
     // Budget alert specific
     budgetPercentage?: number;
@@ -48,17 +41,28 @@ async function sendEmailViaResend(
   subject: string,
   html: string,
   text: string
-): Promise<{ success: boolean; error?: string }> {
+): Promise<{ success: boolean; error?: string; details?: unknown }> {
   const resendApiKey = process.env.RESEND_API_KEY;
 
   if (!resendApiKey) {
-    console.log('📧 Development Mode - Email would be sent to:', to.join(', '));
+    console.log('⚠️ RESEND_API_KEY not configured - Email not sent');
+    console.log('Would send to:', to.join(', '));
     console.log('Subject:', subject);
-    return { success: true };
+    return { success: false, error: 'RESEND_API_KEY not configured' };
+  }
+
+  if (to.length === 0) {
+    console.log('⚠️ No recipients specified');
+    return { success: false, error: 'No recipients' };
   }
 
   try {
-    const fromEmail = process.env.EMAIL_FROM || 'notifications@qs-global-solutions.com';
+    const fromEmail = process.env.EMAIL_FROM || 'QS Global Solutions <notifications@qs-global-solutions.com>';
+
+    console.log('📧 Sending email via Resend...');
+    console.log('From:', fromEmail);
+    console.log('To:', to.join(', '));
+    console.log('Subject:', subject);
 
     const response = await fetch('https://api.resend.com/emails', {
       method: 'POST',
@@ -75,43 +79,36 @@ async function sendEmailViaResend(
       }),
     });
 
+    const responseText = await response.text();
+    console.log('Resend response status:', response.status);
+    console.log('Resend response:', responseText);
+
     if (!response.ok) {
-      const errorData = await response.text();
-      console.error('Resend API error:', errorData);
-      return { success: false, error: errorData };
+      console.error('❌ Resend API error:', responseText);
+      return { success: false, error: responseText };
     }
 
-    const result = await response.json();
-    console.log('Email sent successfully:', result);
-    return { success: true };
+    let result;
+    try {
+      result = JSON.parse(responseText);
+    } catch {
+      result = responseText;
+    }
+
+    console.log('✅ Email sent successfully:', result);
+    return { success: true, details: result };
   } catch (error) {
-    console.error('Failed to send email:', error);
+    console.error('❌ Failed to send email:', error);
     return { success: false, error: String(error) };
   }
 }
 
-// Get admin email addresses
-async function getAdminEmails(): Promise<string[]> {
-  const { data: admins } = await supabaseAdmin
-    .from('users')
-    .select('email')
-    .eq('role', 'admin');
-
-  return (admins || []).map(a => a.email).filter(Boolean);
-}
-
-// Get user email by ID
-async function getUserEmail(userId: string): Promise<{ email: string; name: string } | null> {
-  const { data: user } = await supabaseAdmin
-    .from('users')
-    .select('email, full_name')
-    .eq('id', userId)
-    .single();
-
-  if (user) {
-    return { email: user.email, name: user.full_name };
-  }
-  return null;
+// Get admin email addresses from environment variable
+function getAdminEmails(): string[] {
+  const adminEmails = process.env.ADMIN_EMAILS || '';
+  const emails = adminEmails.split(',').map(e => e.trim()).filter(Boolean);
+  console.log('📋 Admin emails from env:', emails.length > 0 ? emails.join(', ') : 'None configured');
+  return emails;
 }
 
 export async function POST(request: Request) {
@@ -129,7 +126,7 @@ export async function POST(request: Request) {
     switch (body.type) {
       case 'timesheet':
         // Send to all admins when a timesheet is submitted
-        recipients = await getAdminEmails();
+        recipients = getAdminEmails();
         if (recipients.length === 0) {
           return NextResponse.json({ success: true, message: 'No admin recipients found' });
         }
@@ -148,22 +145,17 @@ export async function POST(request: Request) {
         break;
 
       case 'task_assigned':
-        // Send to the assigned user
-        if (!body.data.assignedUserId) {
-          return NextResponse.json({ success: true, message: 'No user assigned' });
+        // Send to the assigned user (email passed directly)
+        if (!body.data.assignedUserEmail) {
+          return NextResponse.json({ success: true, message: 'No user email provided' });
         }
 
-        const assignedUser = await getUserEmail(body.data.assignedUserId);
-        if (!assignedUser) {
-          return NextResponse.json({ success: false, error: 'User not found' }, { status: 404 });
-        }
-
-        recipients = [assignedUser.email];
+        recipients = [body.data.assignedUserEmail];
         template = 'task_assigned';
         subject = `New Task Assigned: ${body.data.taskTitle}`;
         templateData = {
           ...templateData,
-          recipientName: assignedUser.name,
+          recipientName: body.data.assignedUserName || 'Team Member',
           taskTitle: body.data.taskTitle,
           taskDescription: body.data.taskDescription,
           taskPriority: body.data.taskPriority,
@@ -175,7 +167,7 @@ export async function POST(request: Request) {
 
       case 'budget_alert':
         // Send to all admins
-        recipients = await getAdminEmails();
+        recipients = getAdminEmails();
         if (recipients.length === 0) {
           return NextResponse.json({ success: true, message: 'No admin recipients found' });
         }
@@ -195,7 +187,7 @@ export async function POST(request: Request) {
 
       case 'payment_received':
         // Send to all admins
-        recipients = await getAdminEmails();
+        recipients = getAdminEmails();
         if (recipients.length === 0) {
           return NextResponse.json({ success: true, message: 'No admin recipients found' });
         }

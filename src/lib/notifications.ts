@@ -12,7 +12,8 @@ interface TimesheetNotification {
 }
 
 interface TaskAssignedNotification {
-  assignedUserId: string;
+  assignedUserEmail: string;
+  assignedUserName: string;
   taskTitle: string;
   taskDescription?: string;
   taskPriority: string;
