@@ -561,5 +561,5 @@ This is an automated notification from ${companyName}`;
 
 // Get base URL for email links
 export function getBaseUrl(): string {
-  return process.env.NEXT_PUBLIC_APP_URL || 'https://qs-global-solutions.com';
+  return process.env.NEXT_PUBLIC_APP_URL || 'https://pms.qs-global-solutions.com';
 }
