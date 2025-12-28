@@ -1,9 +1,11 @@
 'use client';
 
-import { Bell, Settings } from 'lucide-react';
+import Link from 'next/link';
+import { Settings } from 'lucide-react';
 import { Avatar } from '@/components/ui/avatar';
 import { GlobalSearch } from '@/components/ui/search';
 import { SimpleThemeToggle, ThemeToggle } from '@/components/ui/theme-toggle';
+import { NotificationDropdown } from '@/components/ui/notification-dropdown';
 import type { User } from '@/types/database';
 
 interface HeaderProps {
@@ -58,17 +60,17 @@ export function Header({ user, title, logoUrl, companyName }: HeaderProps) {
           <SimpleThemeToggle />
         </div>
 
-        {/* Notifications */}
-        <button className="relative p-2 rounded-lg text-muted-foreground hover:bg-muted transition-colors">
-          <Bell className="h-5 w-5" />
-          <span className="absolute top-1 right-1 h-2 w-2 bg-primary rounded-full" />
-        </button>
+        {/* Notifications - Admin only */}
+        {user?.role === 'admin' && <NotificationDropdown />}
 
         {/* Settings (Admin only, hidden on mobile) */}
         {user?.role === 'admin' && (
-          <button className="hidden sm:block p-2 rounded-lg text-muted-foreground hover:bg-muted transition-colors">
+          <Link
+            href="/admin/settings"
+            className="hidden sm:block p-2 rounded-lg text-muted-foreground hover:bg-muted transition-colors"
+          >
             <Settings className="h-5 w-5" />
-          </button>
+          </Link>
         )}
 
         {/* User profile */}

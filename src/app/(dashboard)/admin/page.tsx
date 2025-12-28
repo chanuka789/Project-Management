@@ -7,13 +7,14 @@ import { DashboardLayout } from '@/components/layout/dashboard-layout';
 import { StatCard } from '@/components/ui/stat-card';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
 import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { PerformanceChart } from '@/components/charts/performance-chart';
 import { FinanceChart } from '@/components/charts/finance-chart';
+import { ExportModal } from '@/components/ui/export-modal';
 import { useCompanySettings } from '@/hooks/use-company-settings';
-import { formatCurrency, formatDate, getProgressPercentage } from '@/lib/utils';
+import { useNotifications } from '@/hooks/use-notifications';
+import { formatCurrency, formatDate } from '@/lib/utils';
 import {
   FolderKanban,
   Users,
@@ -23,8 +24,12 @@ import {
   ArrowRight,
   Plus,
   Calendar,
+  Download,
+  AlertTriangle,
+  AlertCircle,
+  Bell,
 } from 'lucide-react';
-import type { User, Project, TimeEntry, SupportedCurrency } from '@/types/database';
+import type { User, Project, TimeEntry, SupportedCurrency, BudgetAlert } from '@/types/database';
 import { convertToAED, DEFAULT_EXCHANGE_RATES } from '@/lib/currency';
 
 interface ProjectCost {
@@ -51,7 +56,9 @@ export default function AdminDashboard() {
   const [user, setUser] = useState<User | null>(null);
   const [data, setData] = useState<DashboardData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [showExportModal, setShowExportModal] = useState(false);
   const { companyName, logoUrl } = useCompanySettings();
+  const { notifications, budgetAlerts } = useNotifications();
   const supabase = useMemo(() => createClient(), []);
 
   useEffect(() => {
@@ -151,8 +158,8 @@ export default function AdminDashboard() {
           projectCosts,
           projectHours,
         });
-      } catch (error) {
-        console.error('Error fetching dashboard data:', error);
+      } catch {
+        // Data fetch failed - user will see empty state
       } finally {
         setIsLoading(false);
       }
@@ -217,19 +224,25 @@ export default function AdminDashboard() {
         {/* Welcome Section */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h2 className="text-2xl font-bold text-black">
+            <h2 className="text-2xl font-bold text-foreground">
               Welcome back, {user?.full_name?.split(' ')[0] || 'Admin'}
             </h2>
-            <p className="text-gray-500 mt-1">
+            <p className="text-muted-foreground mt-1">
               Here&apos;s what&apos;s happening with your projects today.
             </p>
           </div>
-          <Link href="/admin/projects/new">
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              New Project
+          <div className="flex items-center gap-3">
+            <Button variant="outline" onClick={() => setShowExportModal(true)}>
+              <Download className="h-4 w-4 mr-2" />
+              Export
             </Button>
-          </Link>
+            <Link href="/admin/projects/new">
+              <Button>
+                <Plus className="h-4 w-4 mr-2" />
+                New Project
+              </Button>
+            </Link>
+          </div>
         </div>
 
         {/* Stats Cards */}
@@ -364,49 +377,172 @@ export default function AdminDashboard() {
           </Card>
         </div>
 
-        {/* Recent Activity */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Clock className="h-5 w-5 text-[#0a5082]" />
-              Recent Time Entries
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {data?.recentTimeEntries.slice(0, 5).map((entry: TimeEntry & { users?: { full_name: string }; projects?: { name: string } }) => (
-                <div
-                  key={entry.id}
-                  className="flex items-center justify-between p-3 rounded-lg bg-gray-50"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="h-8 w-8 rounded-full bg-[#0a5082]/10 flex items-center justify-center">
-                      <Clock className="h-4 w-4 text-[#0a5082]" />
+        {/* Budget Alerts & Recent Activity */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Budget Alerts */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-orange-500" />
+                Budget Alerts
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {budgetAlerts.length === 0 ? (
+                  <div className="text-center py-6">
+                    <div className="h-12 w-12 rounded-full bg-green-100 dark:bg-green-900/20 flex items-center justify-center mx-auto mb-3">
+                      <DollarSign className="h-6 w-6 text-green-600" />
                     </div>
-                    <div>
-                      <p className="text-sm font-medium text-black">
-                        {entry.users?.full_name || 'Unknown User'}
+                    <p className="text-sm text-muted-foreground">All projects within budget</p>
+                  </div>
+                ) : (
+                  budgetAlerts.slice(0, 4).map((alert: BudgetAlert) => (
+                    <Link
+                      key={alert.id}
+                      href={`/admin/projects/${alert.project_id}`}
+                      className="block"
+                    >
+                      <div className="flex items-start gap-3 p-3 rounded-lg hover:bg-muted/50 transition-colors">
+                        <div className={`flex-shrink-0 mt-0.5 p-2 rounded-lg ${
+                          alert.alert_level === 'exceeded'
+                            ? 'bg-red-100 dark:bg-red-900/20'
+                            : alert.alert_level === 'critical'
+                            ? 'bg-orange-100 dark:bg-orange-900/20'
+                            : 'bg-yellow-100 dark:bg-yellow-900/20'
+                        }`}>
+                          {alert.alert_level === 'exceeded' ? (
+                            <AlertCircle className="h-4 w-4 text-red-500" />
+                          ) : (
+                            <AlertTriangle className={`h-4 w-4 ${
+                              alert.alert_level === 'critical' ? 'text-orange-500' : 'text-yellow-600'
+                            }`} />
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-foreground truncate">
+                            {alert.project_name}
+                          </p>
+                          <p className="text-xs text-muted-foreground">{alert.message}</p>
+                          <div className="mt-2 h-1.5 bg-muted rounded-full overflow-hidden">
+                            <div
+                              className={`h-full rounded-full ${
+                                alert.alert_level === 'exceeded'
+                                  ? 'bg-red-500'
+                                  : alert.alert_level === 'critical'
+                                  ? 'bg-orange-500'
+                                  : 'bg-yellow-500'
+                              }`}
+                              style={{ width: `${Math.min(alert.percentage, 100)}%` }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </Link>
+                  ))
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Recent Activity */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Clock className="h-5 w-5 text-[#0a5082]" />
+                Recent Time Entries
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {data?.recentTimeEntries.slice(0, 5).map((entry: TimeEntry & { users?: { full_name: string }; projects?: { name: string } }) => (
+                  <div
+                    key={entry.id}
+                    className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+                        <Clock className="h-4 w-4 text-primary" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-foreground">
+                          {entry.users?.full_name || 'Unknown User'}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {entry.projects?.name || 'Unknown Project'}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-semibold text-primary">
+                        {entry.hours} hours
                       </p>
-                      <p className="text-xs text-gray-500">
-                        {entry.projects?.name || 'Unknown Project'}
-                      </p>
+                      <p className="text-xs text-muted-foreground">{formatDate(entry.date)}</p>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-sm font-semibold text-[#0a5082]">
-                      {entry.hours} hours
-                    </p>
-                    <p className="text-xs text-gray-500">{formatDate(entry.date)}</p>
+                ))}
+                {(!data?.recentTimeEntries || data.recentTimeEntries.length === 0) && (
+                  <p className="text-center text-muted-foreground py-4">No recent time entries</p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Recent Notifications Widget */}
+        {notifications.length > 0 && (
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <Bell className="h-5 w-5 text-[#0a5082]" />
+                Recent Timesheet Submissions
+              </CardTitle>
+              <Link href="/admin/timesheet">
+                <Button variant="ghost" size="sm">
+                  View All <ArrowRight className="h-4 w-4 ml-1" />
+                </Button>
+              </Link>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {notifications.slice(0, 6).map((notification) => (
+                  <div
+                    key={notification.id}
+                    className={`p-3 rounded-lg border transition-colors ${
+                      !notification.is_read
+                        ? 'bg-blue-50/50 dark:bg-blue-900/10 border-blue-200 dark:border-blue-800'
+                        : 'bg-muted/30 border-border'
+                    }`}
+                  >
+                    <div className="flex items-start gap-2">
+                      <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                        <Clock className="h-4 w-4 text-primary" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-foreground truncate">
+                          {notification.metadata?.user_name || 'Team Member'}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {notification.metadata?.hours} hrs on {notification.metadata?.project_name}
+                        </p>
+                      </div>
+                      {!notification.is_read && (
+                        <span className="h-2 w-2 rounded-full bg-blue-500 flex-shrink-0 mt-1" />
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
-              {(!data?.recentTimeEntries || data.recentTimeEntries.length === 0) && (
-                <p className="text-center text-gray-500 py-4">No recent time entries</p>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
+
+      {/* Export Modal */}
+      <ExportModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+      />
     </DashboardLayout>
   );
 }
