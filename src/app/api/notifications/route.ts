@@ -48,17 +48,28 @@ async function sendEmailViaResend(
   subject: string,
   html: string,
   text: string
-): Promise<{ success: boolean; error?: string }> {
+): Promise<{ success: boolean; error?: string; details?: unknown }> {
   const resendApiKey = process.env.RESEND_API_KEY;
 
   if (!resendApiKey) {
-    console.log('📧 Development Mode - Email would be sent to:', to.join(', '));
+    console.log('⚠️ RESEND_API_KEY not configured - Email not sent');
+    console.log('Would send to:', to.join(', '));
     console.log('Subject:', subject);
-    return { success: true };
+    return { success: false, error: 'RESEND_API_KEY not configured' };
+  }
+
+  if (to.length === 0) {
+    console.log('⚠️ No recipients specified');
+    return { success: false, error: 'No recipients' };
   }
 
   try {
-    const fromEmail = process.env.EMAIL_FROM || 'notifications@qs-global-solutions.com';
+    const fromEmail = process.env.EMAIL_FROM || 'QS Global Solutions <notifications@qs-global-solutions.com>';
+
+    console.log('📧 Sending email via Resend...');
+    console.log('From:', fromEmail);
+    console.log('To:', to.join(', '));
+    console.log('Subject:', subject);
 
     const response = await fetch('https://api.resend.com/emails', {
       method: 'POST',
@@ -75,40 +86,71 @@ async function sendEmailViaResend(
       }),
     });
 
+    const responseText = await response.text();
+    console.log('Resend response status:', response.status);
+    console.log('Resend response:', responseText);
+
     if (!response.ok) {
-      const errorData = await response.text();
-      console.error('Resend API error:', errorData);
-      return { success: false, error: errorData };
+      console.error('❌ Resend API error:', responseText);
+      return { success: false, error: responseText };
     }
 
-    const result = await response.json();
-    console.log('Email sent successfully:', result);
-    return { success: true };
+    let result;
+    try {
+      result = JSON.parse(responseText);
+    } catch {
+      result = responseText;
+    }
+
+    console.log('✅ Email sent successfully:', result);
+    return { success: true, details: result };
   } catch (error) {
-    console.error('Failed to send email:', error);
+    console.error('❌ Failed to send email:', error);
     return { success: false, error: String(error) };
   }
 }
 
 // Get admin email addresses
 async function getAdminEmails(): Promise<string[]> {
-  const { data: admins } = await supabaseAdmin
+  console.log('📋 Fetching admin emails from database...');
+
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
+    console.error('❌ NEXT_PUBLIC_SUPABASE_URL not configured');
+    return [];
+  }
+
+  const { data: admins, error } = await supabaseAdmin
     .from('users')
     .select('email')
     .eq('role', 'admin');
 
-  return (admins || []).map(a => a.email).filter(Boolean);
+  if (error) {
+    console.error('❌ Error fetching admin emails:', error);
+    return [];
+  }
+
+  const emails = (admins || []).map(a => a.email).filter(Boolean);
+  console.log('✅ Found admin emails:', emails.length > 0 ? emails.join(', ') : 'None');
+  return emails;
 }
 
 // Get user email by ID
 async function getUserEmail(userId: string): Promise<{ email: string; name: string } | null> {
-  const { data: user } = await supabaseAdmin
+  console.log('📋 Fetching user email for ID:', userId);
+
+  const { data: user, error } = await supabaseAdmin
     .from('users')
     .select('email, full_name')
     .eq('id', userId)
     .single();
 
+  if (error) {
+    console.error('❌ Error fetching user:', error);
+    return null;
+  }
+
   if (user) {
+    console.log('✅ Found user:', user.full_name, user.email);
     return { email: user.email, name: user.full_name };
   }
   return null;
