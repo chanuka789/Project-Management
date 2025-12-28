@@ -266,3 +266,82 @@ export interface ProjectPerformance {
   time_variance: number;
   status: string;
 }
+
+// Notification types
+export type NotificationType =
+  | 'timesheet_submitted'
+  | 'task_assigned'
+  | 'payment_received'
+  | 'payment_issued'
+  | 'budget_alert'
+  | 'project_update'
+  | 'system';
+
+export interface Notification {
+  id: string;
+  type: NotificationType;
+  title: string;
+  message: string;
+  link?: string;
+  user_id?: string;
+  project_id?: string;
+  is_read: boolean;
+  created_at: string;
+  metadata?: {
+    user_name?: string;
+    project_name?: string;
+    hours?: number;
+    amount?: number;
+    percentage?: number;
+  };
+}
+
+// Budget Alert types
+export type BudgetAlertLevel = 'warning' | 'critical' | 'exceeded';
+
+export interface BudgetAlert {
+  id: string;
+  project_id: string;
+  project_name: string;
+  alert_level: BudgetAlertLevel;
+  budget: number;
+  spent: number;
+  percentage: number;
+  message: string;
+  created_at: string;
+}
+
+// Dashboard Widget types
+export type WidgetType =
+  | 'stats'
+  | 'projects'
+  | 'team'
+  | 'timesheet'
+  | 'finance'
+  | 'performance'
+  | 'notifications'
+  | 'budget_alerts';
+
+export interface DashboardWidget {
+  id: string;
+  type: WidgetType;
+  title: string;
+  order: number;
+  visible: boolean;
+  size: 'small' | 'medium' | 'large' | 'full';
+}
+
+// Export Report types
+export type ExportFormat = 'pdf' | 'excel' | 'csv';
+export type ExportType = 'timesheet' | 'payments' | 'projects' | 'finance';
+
+export interface ExportOptions {
+  type: ExportType;
+  format: ExportFormat;
+  dateRange?: {
+    start: string;
+    end: string;
+  };
+  projectId?: string;
+  userId?: string;
+}
