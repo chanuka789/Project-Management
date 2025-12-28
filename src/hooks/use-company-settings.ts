@@ -60,8 +60,7 @@ export function useCompanySettings() {
           // No settings found, use defaults
           setCompanyName('QS Consultancy');
         }
-      } catch (error) {
-        console.error('Error fetching company settings:', error);
+      } catch {
         // Use defaults if fetch fails (cached values already set)
       } finally {
         setIsLoading(false);

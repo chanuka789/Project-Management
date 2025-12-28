@@ -41,7 +41,7 @@ export default function LoginPage() {
           .single();
 
         if (profileError) {
-          console.error('Profile fetch error:', profileError);
+          // Profile fetch failed - redirect to user dashboard as fallback
           router.push('/user');
           return;
         }
