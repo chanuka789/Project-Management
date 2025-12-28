@@ -1,19 +1,11 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 import { generateEmailHtml, generateEmailText, getBaseUrl } from '@/lib/email';
 import type { EmailTemplate, EmailTemplateData } from '@/lib/email';
-
-// Create a Supabase client with service role for server-side operations
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
 
 interface NotificationRequest {
   type: 'timesheet' | 'task_assigned' | 'budget_alert' | 'payment_received' | 'payment_issued';
   data: {
     // Common fields
-    userId?: string;
     projectId?: string;
     projectName?: string;
 
@@ -28,7 +20,8 @@ interface NotificationRequest {
     taskDescription?: string;
     taskPriority?: string;
     taskDueDate?: string;
-    assignedUserId?: string;
+    assignedUserEmail?: string;
+    assignedUserName?: string;
 
     // Budget alert specific
     budgetPercentage?: number;
@@ -110,50 +103,12 @@ async function sendEmailViaResend(
   }
 }
 
-// Get admin email addresses
-async function getAdminEmails(): Promise<string[]> {
-  console.log('📋 Fetching admin emails from database...');
-
-  if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
-    console.error('❌ NEXT_PUBLIC_SUPABASE_URL not configured');
-    return [];
-  }
-
-  const { data: admins, error } = await supabaseAdmin
-    .from('users')
-    .select('email')
-    .eq('role', 'admin');
-
-  if (error) {
-    console.error('❌ Error fetching admin emails:', error);
-    return [];
-  }
-
-  const emails = (admins || []).map(a => a.email).filter(Boolean);
-  console.log('✅ Found admin emails:', emails.length > 0 ? emails.join(', ') : 'None');
+// Get admin email addresses from environment variable
+function getAdminEmails(): string[] {
+  const adminEmails = process.env.ADMIN_EMAILS || '';
+  const emails = adminEmails.split(',').map(e => e.trim()).filter(Boolean);
+  console.log('📋 Admin emails from env:', emails.length > 0 ? emails.join(', ') : 'None configured');
   return emails;
-}
-
-// Get user email by ID
-async function getUserEmail(userId: string): Promise<{ email: string; name: string } | null> {
-  console.log('📋 Fetching user email for ID:', userId);
-
-  const { data: user, error } = await supabaseAdmin
-    .from('users')
-    .select('email, full_name')
-    .eq('id', userId)
-    .single();
-
-  if (error) {
-    console.error('❌ Error fetching user:', error);
-    return null;
-  }
-
-  if (user) {
-    console.log('✅ Found user:', user.full_name, user.email);
-    return { email: user.email, name: user.full_name };
-  }
-  return null;
 }
 
 export async function POST(request: Request) {
@@ -171,7 +126,7 @@ export async function POST(request: Request) {
     switch (body.type) {
       case 'timesheet':
         // Send to all admins when a timesheet is submitted
-        recipients = await getAdminEmails();
+        recipients = getAdminEmails();
         if (recipients.length === 0) {
           return NextResponse.json({ success: true, message: 'No admin recipients found' });
         }
@@ -190,22 +145,17 @@ export async function POST(request: Request) {
         break;
 
       case 'task_assigned':
-        // Send to the assigned user
-        if (!body.data.assignedUserId) {
-          return NextResponse.json({ success: true, message: 'No user assigned' });
+        // Send to the assigned user (email passed directly)
+        if (!body.data.assignedUserEmail) {
+          return NextResponse.json({ success: true, message: 'No user email provided' });
         }
 
-        const assignedUser = await getUserEmail(body.data.assignedUserId);
-        if (!assignedUser) {
-          return NextResponse.json({ success: false, error: 'User not found' }, { status: 404 });
-        }
-
-        recipients = [assignedUser.email];
+        recipients = [body.data.assignedUserEmail];
         template = 'task_assigned';
         subject = `New Task Assigned: ${body.data.taskTitle}`;
         templateData = {
           ...templateData,
-          recipientName: assignedUser.name,
+          recipientName: body.data.assignedUserName || 'Team Member',
           taskTitle: body.data.taskTitle,
           taskDescription: body.data.taskDescription,
           taskPriority: body.data.taskPriority,
@@ -217,7 +167,7 @@ export async function POST(request: Request) {
 
       case 'budget_alert':
         // Send to all admins
-        recipients = await getAdminEmails();
+        recipients = getAdminEmails();
         if (recipients.length === 0) {
           return NextResponse.json({ success: true, message: 'No admin recipients found' });
         }
@@ -237,7 +187,7 @@ export async function POST(request: Request) {
 
       case 'payment_received':
         // Send to all admins
-        recipients = await getAdminEmails();
+        recipients = getAdminEmails();
         if (recipients.length === 0) {
           return NextResponse.json({ success: true, message: 'No admin recipients found' });
         }

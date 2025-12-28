@@ -196,14 +196,18 @@ export default function ProjectDetailPage() {
 
         // Send email notification if task is assigned to someone
         if (taskForm.assigned_to) {
-          notifyTaskAssigned({
-            assignedUserId: taskForm.assigned_to,
-            taskTitle: taskForm.title,
-            taskDescription: taskForm.description || undefined,
-            taskPriority: taskForm.priority,
-            taskDueDate: taskForm.due_date || undefined,
-            projectName: project.name,
-          });
+          const assignedUser = project.assigned_users.find(u => u.id === taskForm.assigned_to);
+          if (assignedUser?.email) {
+            notifyTaskAssigned({
+              assignedUserEmail: assignedUser.email,
+              assignedUserName: assignedUser.full_name,
+              taskTitle: taskForm.title,
+              taskDescription: taskForm.description || undefined,
+              taskPriority: taskForm.priority,
+              taskDueDate: taskForm.due_date || undefined,
+              projectName: project.name,
+            });
+          }
         }
       }
       setShowTaskModal(false);
