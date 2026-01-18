@@ -13,13 +13,7 @@ import { StatCard } from '@/components/ui/stat-card';
 import { TimeChart } from '@/components/charts/time-chart';
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '@/components/ui/table';
 import { formatDate } from '@/lib/utils';
-import {
-  formatCurrencyWithCode,
-  convertFromAED,
-  convertToAED,
-  DEFAULT_EXCHANGE_RATES,
-  SupportedCurrency,
-} from '@/lib/currency';
+import { convertFromAED, convertToAED, DEFAULT_EXCHANGE_RATES, formatCurrencyWithCode, SupportedCurrency } from '@/lib/currency';
 import { useCompanySettings } from '@/hooks/use-company-settings';
 import { Modal } from '@/components/ui/modal';
 import { UserForm } from '@/components/users/user-form';
