@@ -41,7 +41,6 @@ import {
 } from 'lucide-react';
 import type { User, Project, Task, TimeEntry, AdditionalCost, SupportedCurrency, ProjectUserWithUser } from '@/types/database';
 import { convertFromAED, convertToAED, DEFAULT_EXCHANGE_RATES, formatCurrencyWithCode } from '@/lib/currency';
-import { buildProjectCostBreakdown } from '@/lib/project-cost-breakdown';
 import { notifyTaskAssigned } from '@/lib/notifications';
 
 interface ProjectDetails extends Project {
@@ -50,6 +49,9 @@ interface ProjectDetails extends Project {
   time_entries: (TimeEntry & { users: User })[];
   additional_costs: AdditionalCost[];
 }
+
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const { buildProjectCostBreakdown } = require('@/lib/project-cost-breakdown');
 
 export default function ProjectDetailPage() {
   const params = useParams();
