@@ -40,7 +40,7 @@ import {
   FileText,
 } from 'lucide-react';
 import type { User, Project, Task, TimeEntry, AdditionalCost, SupportedCurrency, ProjectUserWithUser } from '@/types/database';
-import { convertToAED, DEFAULT_EXCHANGE_RATES } from '@/lib/currency';
+import { convertFromAED, convertToAED, DEFAULT_EXCHANGE_RATES, formatCurrencyWithCode } from '@/lib/currency';
 import { notifyTaskAssigned } from '@/lib/notifications';
 
 interface ProjectDetails extends Project {
@@ -159,6 +159,15 @@ export default function ProjectDetailPage() {
 
   // Calculate metrics
   const totalHours = project?.time_entries.reduce((sum, te) => sum + te.hours, 0) || 0;
+  const projectCurrency = (project?.currency as SupportedCurrency) || 'AED';
+  const contractValueAed = project?.contract_value_aed
+    ?? (project?.currency === 'AED'
+      ? project.contract_value
+      : convertToAED(
+        project?.contract_value || 0,
+        projectCurrency,
+        DEFAULT_EXCHANGE_RATES[projectCurrency],
+      ));
   // Calculate labor cost in AED (converting hourly rates from their respective currencies)
   const laborCost = project?.time_entries.reduce((sum, te) => {
     const hourlyRate = te.users?.hourly_rate || 0;
@@ -169,9 +178,46 @@ export default function ProjectDetailPage() {
     return sum + (te.hours * hourlyRateAed);
   }, 0) || 0;
   const additionalCostTotal = project?.additional_costs.reduce((sum, c) => sum + c.amount, 0) || 0;
-  const totalCost = laborCost + additionalCostTotal;
-  const profit = (project?.contract_value || 0) - totalCost;
-  const profitMargin = project?.contract_value ? (profit / project.contract_value) * 100 : 0;
+  const additionalCostAed = project?.currency === 'AED'
+    ? additionalCostTotal
+    : convertToAED(additionalCostTotal, projectCurrency, DEFAULT_EXCHANGE_RATES[projectCurrency]);
+  const totalCostAed = laborCost + additionalCostAed;
+  const totalCostDisplay = projectCurrency === 'AED'
+    ? totalCostAed
+    : convertFromAED(totalCostAed, projectCurrency, DEFAULT_EXCHANGE_RATES[projectCurrency]);
+  const laborCostDisplay = projectCurrency === 'AED'
+    ? laborCost
+    : convertFromAED(laborCost, projectCurrency, DEFAULT_EXCHANGE_RATES[projectCurrency]);
+  const profitAed = contractValueAed - totalCostAed;
+  const profitDisplay = projectCurrency === 'AED'
+    ? profitAed
+    : convertFromAED(profitAed, projectCurrency, DEFAULT_EXCHANGE_RATES[projectCurrency]);
+  const profitMargin = contractValueAed ? (profitAed / contractValueAed) * 100 : 0;
+
+  const additionalCostDisplay = projectCurrency === 'AED'
+    ? additionalCostTotal
+    : convertFromAED(additionalCostAed, projectCurrency, DEFAULT_EXCHANGE_RATES[projectCurrency]);
+
+  const userCostBreakdown = project?.assigned_users.map((member) => {
+    const memberHours = project.time_entries
+      .filter((entry) => entry.user_id === member.id)
+      .reduce((sum, entry) => sum + entry.hours, 0);
+    const rateCurrency = (member.hourly_rate_currency as SupportedCurrency) || 'AED';
+    const hourlyRateAed = rateCurrency === 'AED'
+      ? member.hourly_rate || 0
+      : convertToAED(member.hourly_rate || 0, rateCurrency, DEFAULT_EXCHANGE_RATES[rateCurrency]);
+    const costAed = memberHours * hourlyRateAed;
+    const costDisplay = projectCurrency === 'AED'
+      ? costAed
+      : convertFromAED(costAed, projectCurrency, DEFAULT_EXCHANGE_RATES[projectCurrency]);
+    return {
+      id: member.id,
+      name: member.full_name,
+      hours: memberHours,
+      costAed,
+      costDisplay,
+    };
+  }) || [];
 
   const handleAddTask = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -427,20 +473,24 @@ export default function ProjectDetailPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard
             title="Contract Value"
-            value={formatCurrency(project.contract_value)}
+            value={formatCurrencyWithCode(project.contract_value, projectCurrency)}
             icon={<DollarSign className="h-5 w-5" />}
+            description={projectCurrency !== 'AED' ? `≈ ${formatCurrencyWithCode(contractValueAed, 'AED')}` : undefined}
           />
           <StatCard
             title="Total Cost"
-            value={formatCurrency(totalCost)}
+            value={formatCurrencyWithCode(totalCostDisplay, projectCurrency)}
             icon={<TrendingUp className="h-5 w-5" />}
-            description={`Salaries: ${formatCurrency(laborCost)}`}
+            description={projectCurrency !== 'AED'
+              ? `Salaries: ${formatCurrencyWithCode(laborCostDisplay, projectCurrency)} (≈ ${formatCurrencyWithCode(laborCost, 'AED')})`
+              : `Salaries: ${formatCurrencyWithCode(laborCost, 'AED')}`}
           />
           <StatCard
             title="Profit"
-            value={formatCurrency(profit)}
+            value={formatCurrencyWithCode(profitDisplay, projectCurrency)}
             icon={<TrendingUp className="h-5 w-5" />}
             trend={{ value: parseFloat(profitMargin.toFixed(1)) }}
+            description={projectCurrency !== 'AED' ? `≈ ${formatCurrencyWithCode(profitAed, 'AED')}` : undefined}
           />
           <StatCard
             title="Total Hours"
@@ -522,6 +572,100 @@ export default function ProjectDetailPage() {
                   <p className="text-center text-gray-500 py-4">No team members assigned</p>
                 )}
               </div>
+            </CardContent>
+          </Card>
+
+          {/* Cost Breakdown */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <DollarSign className="h-5 w-5 text-[#0a5082]" />
+                Cost Breakdown
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>User</TableHead>
+                    <TableHead className="text-right">Hours</TableHead>
+                    <TableHead className="text-right">Cost</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {userCostBreakdown.map((member) => (
+                    <TableRow key={member.id}>
+                      <TableCell className="font-medium">{member.name}</TableCell>
+                      <TableCell className="text-right">{member.hours.toFixed(1)} hrs</TableCell>
+                      <TableCell className="text-right">
+                        <div className="font-medium text-[#0a5082]">
+                          {formatCurrencyWithCode(member.costDisplay, projectCurrency)}
+                        </div>
+                        {projectCurrency !== 'AED' && (
+                          <div className="text-xs text-gray-500">
+                            ≈ {formatCurrencyWithCode(member.costAed, 'AED')}
+                          </div>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {userCostBreakdown.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={3} className="text-center text-gray-500 py-4">
+                        No team costs recorded
+                      </TableCell>
+                    </TableRow>
+                  )}
+                  {userCostBreakdown.length > 0 && (
+                    <>
+                      <TableRow>
+                        <TableCell className="font-semibold">Team Total</TableCell>
+                        <TableCell className="text-right font-semibold">
+                          {totalHours.toFixed(1)} hrs
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="font-semibold text-[#0a5082]">
+                            {formatCurrencyWithCode(laborCostDisplay, projectCurrency)}
+                          </div>
+                          {projectCurrency !== 'AED' && (
+                            <div className="text-xs text-gray-500">
+                            ≈ {formatCurrencyWithCode(laborCost, 'AED')}
+                            </div>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell className="font-semibold">Additional Costs</TableCell>
+                        <TableCell className="text-right">—</TableCell>
+                        <TableCell className="text-right">
+                          <div className="font-semibold text-[#0a5082]">
+                            {formatCurrencyWithCode(additionalCostDisplay, projectCurrency)}
+                          </div>
+                          {projectCurrency !== 'AED' && (
+                            <div className="text-xs text-gray-500">
+                              ≈ {formatCurrencyWithCode(additionalCostAed, 'AED')}
+                            </div>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell className="font-semibold">Total Cost</TableCell>
+                        <TableCell className="text-right">—</TableCell>
+                        <TableCell className="text-right">
+                          <div className="font-semibold text-[#0a5082]">
+                            {formatCurrencyWithCode(totalCostDisplay, projectCurrency)}
+                          </div>
+                          {projectCurrency !== 'AED' && (
+                            <div className="text-xs text-gray-500">
+                              ≈ {formatCurrencyWithCode(totalCostAed, 'AED')}
+                            </div>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    </>
+                  )}
+                </TableBody>
+              </Table>
             </CardContent>
           </Card>
 
