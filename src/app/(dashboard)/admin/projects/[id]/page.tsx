@@ -41,6 +41,7 @@ import {
 } from 'lucide-react';
 import type { User, Project, Task, TimeEntry, AdditionalCost, SupportedCurrency, ProjectUserWithUser } from '@/types/database';
 import { convertFromAED, convertToAED, DEFAULT_EXCHANGE_RATES, formatCurrencyWithCode } from '@/lib/currency';
+import { buildProjectCostBreakdown } from '@/lib/project-cost-breakdown';
 import { notifyTaskAssigned } from '@/lib/notifications';
 
 interface ProjectDetails extends Project {
@@ -49,40 +50,6 @@ interface ProjectDetails extends Project {
   time_entries: (TimeEntry & { users: User })[];
   additional_costs: AdditionalCost[];
 }
-
-const buildCostBreakdown = (
-  project: ProjectDetails | null,
-  projectCurrency: SupportedCurrency,
-  additionalCostTotal: number,
-  additionalCostAed: number,
-) => {
-  const additionalCostDisplay = projectCurrency === 'AED'
-    ? additionalCostTotal
-    : convertFromAED(additionalCostAed, projectCurrency, DEFAULT_EXCHANGE_RATES[projectCurrency]);
-
-  const userCostBreakdown = project?.assigned_users.map((member) => {
-    const memberHours = project.time_entries
-      .filter((entry) => entry.user_id === member.id)
-      .reduce((sum, entry) => sum + entry.hours, 0);
-    const rateCurrency = (member.hourly_rate_currency as SupportedCurrency) || 'AED';
-    const hourlyRateAed = rateCurrency === 'AED'
-      ? member.hourly_rate || 0
-      : convertToAED(member.hourly_rate || 0, rateCurrency, DEFAULT_EXCHANGE_RATES[rateCurrency]);
-    const costAed = memberHours * hourlyRateAed;
-    const costDisplay = projectCurrency === 'AED'
-      ? costAed
-      : convertFromAED(costAed, projectCurrency, DEFAULT_EXCHANGE_RATES[projectCurrency]);
-    return {
-      id: member.id,
-      name: member.full_name,
-      hours: memberHours,
-      costAed,
-      costDisplay,
-    };
-  }) || [];
-
-  return { additionalCostDisplay, userCostBreakdown };
-};
 
 export default function ProjectDetailPage() {
   const params = useParams();
@@ -228,30 +195,12 @@ export default function ProjectDetailPage() {
     : convertFromAED(profitAed, projectCurrency, DEFAULT_EXCHANGE_RATES[projectCurrency]);
   const profitMargin = contractValueAed ? (profitAed / contractValueAed) * 100 : 0;
 
-  const additionalCostDisplay = projectCurrency === 'AED'
-    ? additionalCostTotal
-    : convertFromAED(additionalCostAed, projectCurrency, DEFAULT_EXCHANGE_RATES[projectCurrency]);
-
-  const userCostBreakdown = project?.assigned_users.map((member) => {
-    const memberHours = project.time_entries
-      .filter((entry) => entry.user_id === member.id)
-      .reduce((sum, entry) => sum + entry.hours, 0);
-    const rateCurrency = (member.hourly_rate_currency as SupportedCurrency) || 'AED';
-    const hourlyRateAed = rateCurrency === 'AED'
-      ? member.hourly_rate || 0
-      : convertToAED(member.hourly_rate || 0, rateCurrency, DEFAULT_EXCHANGE_RATES[rateCurrency]);
-    const costAed = memberHours * hourlyRateAed;
-    const costDisplay = projectCurrency === 'AED'
-      ? costAed
-      : convertFromAED(costAed, projectCurrency, DEFAULT_EXCHANGE_RATES[projectCurrency]);
-    return {
-      id: member.id,
-      name: member.full_name,
-      hours: memberHours,
-      costAed,
-      costDisplay,
-    };
-  }) || [];
+  const { additionalCostDisplay, userCostBreakdown } = buildProjectCostBreakdown(
+    project,
+    projectCurrency,
+    additionalCostTotal,
+    additionalCostAed,
+  );
 
   const handleAddTask = async (e: React.FormEvent) => {
     e.preventDefault();
