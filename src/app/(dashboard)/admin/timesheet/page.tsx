@@ -15,7 +15,7 @@ import { Avatar } from '@/components/ui/avatar';
 import { useCompanySettings } from '@/hooks/use-company-settings';
 import { PasswordConfirmModal } from '@/components/ui/password-confirm-modal';
 import { formatDate } from '@/lib/utils';
-import { formatCurrencyWithCode } from '@/lib/currency';
+import { convertFromAED, convertToAED, DEFAULT_EXCHANGE_RATES, formatCurrencyWithCode } from '@/lib/currency';
 import {
   Plus,
   Clock,
@@ -265,14 +265,25 @@ export default function AdminTimesheetPage() {
     return acc;
   }, {} as Record<string, number>);
 
-  // Calculate total cost per user
+  // Calculate total cost per user (stored in user's hourly rate currency)
   const userTotalCost = users.reduce((acc, user) => {
     acc[user.id] = (userTotalHours[user.id] || 0) * (user.hourly_rate || 0);
     return acc;
   }, {} as Record<string, number>);
 
+  // Calculate total cost per user in AED for consistent totals
+  const userTotalCostAed = users.reduce((acc, user) => {
+    const rateCurrency = user.hourly_rate_currency || 'AED';
+    const hourlyRateAed = rateCurrency === 'AED'
+      ? user.hourly_rate || 0
+      : convertToAED(user.hourly_rate || 0, rateCurrency, DEFAULT_EXCHANGE_RATES[rateCurrency]);
+    acc[user.id] = (userTotalHours[user.id] || 0) * hourlyRateAed;
+    return acc;
+  }, {} as Record<string, number>);
+
   const totalPeriodHours = Object.values(userTotalHours).reduce((sum, h) => sum + h, 0);
-  const totalPeriodCost = Object.values(userTotalCost).reduce((sum, c) => sum + c, 0);
+  const totalPeriodCostAed = Object.values(userTotalCostAed).reduce((sum, c) => sum + c, 0);
+  const totalPeriodCostLkr = convertFromAED(totalPeriodCostAed, 'LKR', DEFAULT_EXCHANGE_RATES.LKR);
 
   // Format period label
   const periodLabel = timePeriod === 'weekly'
@@ -397,7 +408,10 @@ export default function AdminTimesheetPage() {
                   </span>
                   <span className="text-gray-400">•</span>
                   <span className="text-gray-500">
-                    Total Cost: <span className="font-medium text-primary">{formatCurrencyWithCode(totalPeriodCost, 'AED')}</span>
+                    Total Cost: <span className="font-medium text-primary">{formatCurrencyWithCode(totalPeriodCostLkr, 'LKR')}</span>
+                    <span className="ml-2 text-xs text-gray-400">
+                      ≈ {formatCurrencyWithCode(totalPeriodCostAed, 'AED')}
+                    </span>
                   </span>
                 </div>
               </div>
@@ -488,7 +502,10 @@ export default function AdminTimesheetPage() {
                         );
                       })}
                       <td className="text-center py-3 px-3 text-primary">{totalPeriodHours.toFixed(1)}h</td>
-                      <td className="text-center py-3 px-3 text-primary">{formatCurrencyWithCode(totalPeriodCost, 'AED')}</td>
+                      <td className="text-center py-3 px-3 text-primary">
+                        <div>{formatCurrencyWithCode(totalPeriodCostLkr, 'LKR')}</div>
+                        <div className="text-xs text-gray-400">≈ {formatCurrencyWithCode(totalPeriodCostAed, 'AED')}</div>
+                      </td>
                     </tr>
                   </tbody>
                 </table>
