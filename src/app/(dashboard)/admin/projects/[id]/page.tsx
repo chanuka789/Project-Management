@@ -40,7 +40,7 @@ import {
   FileText,
 } from 'lucide-react';
 import type { User, Project, Task, TimeEntry, AdditionalCost, SupportedCurrency, ProjectUserWithUser } from '@/types/database';
-import { convertToAED, DEFAULT_EXCHANGE_RATES } from '@/lib/currency';
+import { convertFromAED, convertToAED, DEFAULT_EXCHANGE_RATES, formatCurrencyWithCode } from '@/lib/currency';
 import { notifyTaskAssigned } from '@/lib/notifications';
 
 interface ProjectDetails extends Project {
@@ -159,6 +159,15 @@ export default function ProjectDetailPage() {
 
   // Calculate metrics
   const totalHours = project?.time_entries.reduce((sum, te) => sum + te.hours, 0) || 0;
+  const projectCurrency = (project?.currency as SupportedCurrency) || 'AED';
+  const contractValueAed = project?.contract_value_aed
+    ?? (project?.currency === 'AED'
+      ? project.contract_value
+      : convertToAED(
+        project?.contract_value || 0,
+        projectCurrency,
+        DEFAULT_EXCHANGE_RATES[projectCurrency],
+      ));
   // Calculate labor cost in AED (converting hourly rates from their respective currencies)
   const laborCost = project?.time_entries.reduce((sum, te) => {
     const hourlyRate = te.users?.hourly_rate || 0;
@@ -169,9 +178,21 @@ export default function ProjectDetailPage() {
     return sum + (te.hours * hourlyRateAed);
   }, 0) || 0;
   const additionalCostTotal = project?.additional_costs.reduce((sum, c) => sum + c.amount, 0) || 0;
-  const totalCost = laborCost + additionalCostTotal;
-  const profit = (project?.contract_value || 0) - totalCost;
-  const profitMargin = project?.contract_value ? (profit / project.contract_value) * 100 : 0;
+  const additionalCostAed = project?.currency === 'AED'
+    ? additionalCostTotal
+    : convertToAED(additionalCostTotal, projectCurrency, DEFAULT_EXCHANGE_RATES[projectCurrency]);
+  const totalCostAed = laborCost + additionalCostAed;
+  const totalCostDisplay = projectCurrency === 'AED'
+    ? totalCostAed
+    : convertFromAED(totalCostAed, projectCurrency, DEFAULT_EXCHANGE_RATES[projectCurrency]);
+  const laborCostDisplay = projectCurrency === 'AED'
+    ? laborCost
+    : convertFromAED(laborCost, projectCurrency, DEFAULT_EXCHANGE_RATES[projectCurrency]);
+  const profitAed = contractValueAed - totalCostAed;
+  const profitDisplay = projectCurrency === 'AED'
+    ? profitAed
+    : convertFromAED(profitAed, projectCurrency, DEFAULT_EXCHANGE_RATES[projectCurrency]);
+  const profitMargin = contractValueAed ? (profitAed / contractValueAed) * 100 : 0;
 
   const handleAddTask = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -427,20 +448,24 @@ export default function ProjectDetailPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard
             title="Contract Value"
-            value={formatCurrency(project.contract_value)}
+            value={formatCurrencyWithCode(project.contract_value, projectCurrency)}
             icon={<DollarSign className="h-5 w-5" />}
+            description={projectCurrency !== 'AED' ? `≈ ${formatCurrencyWithCode(contractValueAed, 'AED')}` : undefined}
           />
           <StatCard
             title="Total Cost"
-            value={formatCurrency(totalCost)}
+            value={formatCurrencyWithCode(totalCostDisplay, projectCurrency)}
             icon={<TrendingUp className="h-5 w-5" />}
-            description={`Salaries: ${formatCurrency(laborCost)}`}
+            description={projectCurrency !== 'AED'
+              ? `Salaries: ${formatCurrencyWithCode(laborCostDisplay, projectCurrency)} (≈ ${formatCurrencyWithCode(laborCost, 'AED')})`
+              : `Salaries: ${formatCurrencyWithCode(laborCost, 'AED')}`}
           />
           <StatCard
             title="Profit"
-            value={formatCurrency(profit)}
+            value={formatCurrencyWithCode(profitDisplay, projectCurrency)}
             icon={<TrendingUp className="h-5 w-5" />}
             trend={{ value: parseFloat(profitMargin.toFixed(1)) }}
+            description={projectCurrency !== 'AED' ? `≈ ${formatCurrencyWithCode(profitAed, 'AED')}` : undefined}
           />
           <StatCard
             title="Total Hours"
