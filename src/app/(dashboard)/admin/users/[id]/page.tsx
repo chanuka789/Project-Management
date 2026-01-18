@@ -14,6 +14,7 @@ import { TimeChart } from '@/components/charts/time-chart';
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '@/components/ui/table';
 import { formatDate } from '@/lib/utils';
 import { formatCurrencyWithCode, convertToAED, SupportedCurrency } from '@/lib/currency';
+import { convertFromAED, DEFAULT_EXCHANGE_RATES } from '@/lib/currency';
 import { useCompanySettings } from '@/hooks/use-company-settings';
 import { Modal } from '@/components/ui/modal';
 import { UserForm } from '@/components/users/user-form';
@@ -29,12 +30,13 @@ import {
   FolderKanban,
   Edit,
 } from 'lucide-react';
-import type { User, Project, TimeEntry, Task, ProjectUserWithProject } from '@/types/database';
+import type { User, Project, TimeEntry, Task, ProjectUserWithProject, UserPayment } from '@/types/database';
 
 interface UserDetails extends User {
   assigned_projects: Project[];
   time_entries: (TimeEntry & { projects: Project })[];
   tasks: Task[];
+  user_payments: UserPayment[];
 }
 
 export default function UserDetailPage() {
@@ -88,11 +90,19 @@ export default function UserDetailPage() {
           .eq('assigned_to', userId)
           .order('created_at', { ascending: false });
 
+        // Fetch user payments
+        const { data: userPayments } = await supabase
+          .from('user_payments')
+          .select('*')
+          .eq('user_id', userId)
+          .order('payment_date', { ascending: false });
+
         setUserDetails({
           ...userData,
           assigned_projects: ((projectUsers as ProjectUserWithProject[]) || []).map((pu) => Array.isArray(pu.projects) ? pu.projects[0] : pu.projects).filter(Boolean),
           time_entries: timeEntries || [],
           tasks: tasks || [],
+          user_payments: userPayments || [],
         });
       }
     } catch (error) {
@@ -155,9 +165,29 @@ export default function UserDetailPage() {
   // Calculate metrics
   const totalHours = userDetails.time_entries.reduce((sum, te) => sum + te.hours, 0);
   const userCurrency = (userDetails.hourly_rate_currency || 'AED') as SupportedCurrency;
+  const paymentCurrency = (userDetails.default_currency || 'AED') as SupportedCurrency;
   const totalCostInUserCurrency = totalHours * userDetails.hourly_rate;
   const hourlyRateInAED = convertToAED(userDetails.hourly_rate, userCurrency);
   const totalCostInAED = convertToAED(totalCostInUserCurrency, userCurrency);
+  const totalPaidAed = userDetails.user_payments
+    .filter((payment) => payment.status === 'completed')
+    .reduce((sum, payment) => {
+      if (payment.amount_aed) {
+        return sum + payment.amount_aed;
+      }
+      return sum + convertToAED(
+        payment.amount,
+        payment.currency,
+        DEFAULT_EXCHANGE_RATES[payment.currency],
+      );
+    }, 0);
+  const pendingAed = Math.max(0, totalCostInAED - totalPaidAed);
+  const totalPaidDisplay = paymentCurrency === 'AED'
+    ? totalPaidAed
+    : convertFromAED(totalPaidAed, paymentCurrency, DEFAULT_EXCHANGE_RATES[paymentCurrency]);
+  const pendingDisplay = paymentCurrency === 'AED'
+    ? pendingAed
+    : convertFromAED(pendingAed, paymentCurrency, DEFAULT_EXCHANGE_RATES[paymentCurrency]);
   const completedTasks = userDetails.tasks.filter(t => t.status === 'completed').length;
   const pendingTasks = userDetails.tasks.filter(t => t.status !== 'completed').length;
 
@@ -277,7 +307,7 @@ export default function UserDetailPage() {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <StatCard
             title="Hourly Rate"
             value={`${formatCurrencyWithCode(userDetails.hourly_rate, userCurrency)}/hr`}
@@ -293,6 +323,18 @@ export default function UserDetailPage() {
             title="Total Cost"
             value={formatCurrencyWithCode(totalCostInUserCurrency, userCurrency)}
             description={userCurrency !== 'AED' ? `≈ ${formatCurrencyWithCode(totalCostInAED, 'AED')}` : undefined}
+            icon={<DollarSign className="h-5 w-5" />}
+          />
+          <StatCard
+            title="Total Paid"
+            value={formatCurrencyWithCode(totalPaidDisplay, paymentCurrency)}
+            description={paymentCurrency !== 'AED' ? `≈ ${formatCurrencyWithCode(totalPaidAed, 'AED')}` : undefined}
+            icon={<DollarSign className="h-5 w-5" />}
+          />
+          <StatCard
+            title="Pending Balance"
+            value={formatCurrencyWithCode(pendingDisplay, paymentCurrency)}
+            description={paymentCurrency !== 'AED' ? `≈ ${formatCurrencyWithCode(pendingAed, 'AED')}` : undefined}
             icon={<DollarSign className="h-5 w-5" />}
           />
           <StatCard
