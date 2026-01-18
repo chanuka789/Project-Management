@@ -12,7 +12,7 @@ import { Avatar } from '@/components/ui/avatar';
 import { StatCard } from '@/components/ui/stat-card';
 import { TimeChart } from '@/components/charts/time-chart';
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '@/components/ui/table';
-import { formatCurrency, formatDate } from '@/lib/utils';
+import { formatDate } from '@/lib/utils';
 import { formatCurrencyWithCode, convertToAED, SupportedCurrency } from '@/lib/currency';
 import { useCompanySettings } from '@/hooks/use-company-settings';
 import { Modal } from '@/components/ui/modal';
@@ -179,12 +179,49 @@ export default function UserDetailPage() {
     };
   });
 
-  // Group time entries by project
-  const hoursByProject = userDetails.time_entries.reduce((acc, te) => {
-    const projectName = te.projects?.name || 'Unknown';
-    acc[projectName] = (acc[projectName] || 0) + te.hours;
-    return acc;
-  }, {} as Record<string, number>);
+  const projectBreakdown = (() => {
+    const timeEntryMap = new Map<string, { project: Project | null; hours: number }>();
+
+    userDetails.time_entries.forEach((entry) => {
+      const existing = timeEntryMap.get(entry.project_id);
+      if (existing) {
+        existing.hours += entry.hours;
+      } else {
+        timeEntryMap.set(entry.project_id, {
+          project: entry.projects || null,
+          hours: entry.hours,
+        });
+      }
+    });
+
+    const merged = new Map<string, { project: Project | null; hours: number }>();
+    userDetails.assigned_projects.forEach((project) => {
+      merged.set(project.id, {
+        project,
+        hours: timeEntryMap.get(project.id)?.hours || 0,
+      });
+    });
+
+    timeEntryMap.forEach((value, projectId) => {
+      if (!merged.has(projectId)) {
+        merged.set(projectId, value);
+      }
+    });
+
+    return Array.from(merged.entries())
+      .map(([projectId, { project, hours }]) => {
+        const cost = hours * userDetails.hourly_rate;
+        const costAed = convertToAED(cost, userCurrency);
+        return {
+          projectId,
+          project,
+          hours,
+          cost,
+          costAed,
+        };
+      })
+      .sort((a, b) => b.hours - a.hours);
+  })();
 
   return (
     <DashboardLayout user={currentUser} title={userDetails.full_name} logoUrl={logoUrl} companyName={companyName}>
@@ -280,35 +317,72 @@ export default function UserDetailPage() {
 
         {/* Projects & Tasks */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Assigned Projects */}
+          {/* Project Breakdown */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <FolderKanban className="h-5 w-5 text-[#0a5082]" />
-                Assigned Projects ({userDetails.assigned_projects.length})
+                Project Breakdown
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {userDetails.assigned_projects.map((project) => (
-                  <Link key={project.id} href={`/admin/projects/${project.id}`}>
-                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-                      <div>
-                        <p className="font-medium text-black">{project.name}</p>
-                        <p className="text-sm text-gray-500">
-                          {hoursByProject[project.name]?.toFixed(1) || 0} hours logged
-                        </p>
-                      </div>
-                      <Badge variant={project.status === 'in_progress' ? 'primary' : 'secondary'}>
-                        {project.status.replace('_', ' ')}
-                      </Badge>
-                    </div>
-                  </Link>
-                ))}
-                {userDetails.assigned_projects.length === 0 && (
-                  <p className="text-center text-gray-500 py-4">No projects assigned</p>
-                )}
-              </div>
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Project</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Hours</TableHead>
+                    <TableHead className="text-right">Cost</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {projectBreakdown.map(({ projectId, project, hours, cost, costAed }) => (
+                    <TableRow key={projectId}>
+                      <TableCell>
+                        {project ? (
+                          <Link
+                            href={`/admin/projects/${project.id}`}
+                            className="font-medium text-[#0a5082] hover:underline"
+                          >
+                            {project.name}
+                          </Link>
+                        ) : (
+                          <span className="text-gray-500">Unknown Project</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {project ? (
+                          <Badge variant={project.status === 'in_progress' ? 'primary' : 'secondary'}>
+                            {project.status.replace('_', ' ')}
+                          </Badge>
+                        ) : (
+                          <Badge variant="secondary">unassigned</Badge>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right font-medium">
+                        {hours.toFixed(1)} hrs
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="font-medium text-[#0a5082]">
+                          {formatCurrencyWithCode(cost, userCurrency)}
+                        </div>
+                        {userCurrency !== 'AED' && (
+                          <div className="text-xs text-gray-500">
+                            ≈ {formatCurrencyWithCode(costAed, 'AED')}
+                          </div>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {projectBreakdown.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={4} className="text-center text-gray-500 py-6">
+                        No project activity yet
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
             </CardContent>
           </Card>
 

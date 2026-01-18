@@ -61,6 +61,20 @@ export default function AdminDashboard() {
   const { notifications, budgetAlerts } = useNotifications();
   const supabase = useMemo(() => createClient(), []);
 
+  const getProjectContractValueAed = (project: Project) => {
+    if (project.contract_value_aed && project.contract_value_aed > 0) {
+      return project.contract_value_aed;
+    }
+    if (project.currency && project.currency !== 'AED') {
+      return convertToAED(
+        project.contract_value || 0,
+        project.currency,
+        DEFAULT_EXCHANGE_RATES[project.currency],
+      );
+    }
+    return project.contract_value || 0;
+  };
+
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -108,7 +122,7 @@ export default function AdminDashboard() {
         const totalProjects = projects?.length || 0;
         const activeProjects = projects?.filter(p => p.status === 'in_progress').length || 0;
         const totalUsers = users?.length || 0;
-        const totalContractValue = projects?.reduce((sum, p) => sum + (p.contract_value || 0), 0) || 0;
+        const totalContractValue = projects?.reduce((sum, p) => sum + getProjectContractValueAed(p), 0) || 0;
 
         // Calculate labor costs
         const laborCosts = await calculateLaborCosts(supabase);
@@ -202,9 +216,10 @@ export default function AdminDashboard() {
   const financeData = data?.projects.slice(0, 6).map(p => {
     const projectCost = data.projectCosts.find(pc => pc.projectId === p.id);
     const totalCost = (projectCost?.laborCost || 0) + (projectCost?.additionalCost || 0);
+    const revenueAed = getProjectContractValueAed(p);
     return {
       name: p.name.length > 10 ? p.name.slice(0, 10) + '...' : p.name,
-      revenue: p.contract_value || 0,
+      revenue: Math.round(revenueAed),
       cost: Math.round(totalCost),
     };
   }) || [];
