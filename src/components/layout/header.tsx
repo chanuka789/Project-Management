@@ -27,11 +27,11 @@ export function Header({ user, title, logoUrl, companyName }: HeaderProps) {
               <img
                 src={logoUrl}
                 alt={companyName || 'Company Logo'}
-                className="h-8 w-8 object-contain"
+                className="h-10 w-10 object-contain"
               />
             ) : (
-              <div className="h-8 w-8 rounded-lg gradient-primary flex items-center justify-center">
-                <span className="text-white font-bold text-sm">
+              <div className="h-10 w-10 rounded-lg gradient-primary flex items-center justify-center">
+                <span className="text-white font-bold text-base">
                   {companyName?.substring(0, 2).toUpperCase() || 'QS'}
                 </span>
               </div>
