@@ -646,9 +646,17 @@ export default function AdminTimesheetPage() {
                     return (
                       <TableRow key={entry.id}>
                         <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Avatar name={entry.users?.full_name || 'Unknown'} size="sm" />
-                            <span className="text-sm font-medium">{entry.users?.full_name}</span>
+                          <div className="flex items-center gap-2 sm:gap-3">
+                            <Avatar
+                              name={entry.users?.full_name || 'Unknown'}
+                              size="sm"
+                              className="shrink-0"
+                            />
+                            <div className="min-w-0">
+                              <span className="block truncate text-sm font-medium text-gray-900">
+                                {entry.users?.full_name}
+                              </span>
+                            </div>
                           </div>
                         </TableCell>
                         <TableCell>
@@ -657,8 +665,13 @@ export default function AdminTimesheetPage() {
                             {formatDate(entry.date)}
                           </div>
                         </TableCell>
-                        <TableCell>
-                          <Badge variant="secondary">{entry.projects?.name}</Badge>
+                        <TableCell className="max-w-[170px] sm:max-w-none">
+                          <Badge
+                            variant="secondary"
+                            className="max-w-[150px] truncate sm:max-w-none sm:whitespace-normal"
+                          >
+                            {entry.projects?.name}
+                          </Badge>
                         </TableCell>
                         <TableCell>
                           {entry.description || <span className="text-gray-400">No description</span>}
