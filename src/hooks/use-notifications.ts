@@ -26,16 +26,13 @@ export function useNotifications(): UseNotificationsReturn {
 
   const fetchNotifications = useCallback(async () => {
     try {
-      // Fetch recent time entries (last 7 days) as notifications
-      const sevenDaysAgo = new Date();
-      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-
+      const maxNotificationItems = 200;
+      // Fetch recent time entries as notifications
       const { data: timeEntries } = await supabase
         .from('time_entries')
         .select('*, users(full_name), projects(name)')
-        .gte('created_at', sevenDaysAgo.toISOString())
         .order('created_at', { ascending: false })
-        .limit(20);
+        .limit(maxNotificationItems);
 
       // Convert time entries to notifications
       const timesheetNotifications: Notification[] = (timeEntries || []).map((entry: TimeEntry & { users?: { full_name: string }; projects?: { name: string } }) => ({
@@ -148,9 +145,12 @@ export function useNotifications(): UseNotificationsReturn {
       setNotifications(notificationsWithReadStatus);
       setBudgetAlerts(alerts);
 
-      // Cache budget alerts
+      // Cache budget alerts and prune older read entries
       try {
         localStorage.setItem(BUDGET_ALERTS_CACHE_KEY, JSON.stringify(alerts));
+        const validReadIds = notificationsWithReadStatus.map(n => n.id);
+        const prunedReadIds = readNotifications.filter(id => validReadIds.includes(id));
+        localStorage.setItem(NOTIFICATIONS_CACHE_KEY, JSON.stringify(prunedReadIds));
       } catch {
         // Ignore localStorage errors
       }
