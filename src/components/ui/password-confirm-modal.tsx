@@ -96,7 +96,7 @@ export function PasswordConfirmModal({
 
         <div className="space-y-2">
           <p className="text-sm text-muted-foreground">
-            Enter your admin password to confirm this action:
+            Enter your password to confirm this action:
           </p>
           <Input
             type="password"
