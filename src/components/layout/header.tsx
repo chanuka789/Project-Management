@@ -17,7 +17,7 @@ interface HeaderProps {
 
 export function Header({ user, title, logoUrl, companyName }: HeaderProps) {
   return (
-    <header className="sticky top-0 z-30 h-16 bg-card/95 backdrop-blur-sm border-b border-border flex items-center justify-between px-4 sm:px-6">
+    <header className="sticky top-0 z-30 h-16 bg-card/95 backdrop-blur-sm border-b border-border flex items-center justify-between pl-16 pr-4 sm:px-6">
       {/* Left side - Company Branding */}
       <div className="flex items-center gap-3 sm:gap-4">
         {/* Company Logo - visible on mobile, only show when loaded */}
@@ -27,11 +27,11 @@ export function Header({ user, title, logoUrl, companyName }: HeaderProps) {
               <img
                 src={logoUrl}
                 alt={companyName || 'Company Logo'}
-                className="h-8 w-8 object-contain"
+                className="h-10 w-10 object-contain"
               />
             ) : (
-              <div className="h-8 w-8 rounded-lg gradient-primary flex items-center justify-center">
-                <span className="text-white font-bold text-sm">
+              <div className="h-10 w-10 rounded-lg gradient-primary flex items-center justify-center">
+                <span className="text-white font-bold text-base">
                   {companyName?.substring(0, 2).toUpperCase() || 'QS'}
                 </span>
               </div>
