@@ -27,7 +27,7 @@ export function Header({ user, title, logoUrl, companyName }: HeaderProps) {
               <img
                 src={logoUrl}
                 alt={companyName || 'Company Logo'}
-                className="h-10 w-auto max-w-[120px] object-contain"
+                className="h-10 w-auto object-contain"
               />
             ) : (
               <div className="h-10 w-10 rounded-lg gradient-primary flex items-center justify-center">
